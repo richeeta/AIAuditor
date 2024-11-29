@@ -1,13 +1,26 @@
+/*
+ * AIAuditIssue.java
+ * Author: Richard Hyunho Im (@richeeta), Route Zero Security
+ * 
+ * Represents individual security findings identified by the AI Auditor.
+ * This class encapsulates details such as the vulnerability type, location,
+ * confidence level, severity, and actionable recommendations, making them 
+ * compatible with Burp Suite’s issue tracking framework.
+ * 
+ * Version: 1.0
+ * 
+ * Date: November 28, 2024
+ */
+
 package burp;
 
+import burp.api.montoya.collaborator.Interaction;
+import burp.api.montoya.http.HttpService;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.scanner.audit.issues.AuditIssue;
-import burp.api.montoya.scanner.audit.issues.AuditIssueDefinition;
 import burp.api.montoya.scanner.audit.issues.AuditIssueConfidence;
+import burp.api.montoya.scanner.audit.issues.AuditIssueDefinition;
 import burp.api.montoya.scanner.audit.issues.AuditIssueSeverity;
-import burp.api.montoya.http.HttpService;
-import burp.api.montoya.collaborator.Interaction;
-
 import java.util.Collections;
 import java.util.List;
 

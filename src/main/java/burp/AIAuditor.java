@@ -1,6 +1,20 @@
-package burp;
+/*
+ * AIAuditor.java
+ * Author: Richard Hyunho Im (@richeeta), Route Zero Security
+ * 
+ * Core class for the AI Auditor Burp Suite extension. 
+ * This class integrates with multiple Large Language Models (LLMs) to 
+ * analyze HTTP requests and responses for security vulnerabilities. 
+ * It manages API interactions, processes findings, and provides detailed
+ * results for integration into Burp Suite’s Scanner and other tools.
+ * 
+ * Version: 1.0
+ * 
+ * Date: November 28, 2024
+ */
 
-import java.io.IOException;
+
+package burp;
 
 import burp.api.montoya.BurpExtension;
 import burp.api.montoya.MontoyaApi;
@@ -17,18 +31,18 @@ import burp.api.montoya.scanner.audit.issues.AuditIssueSeverity;
 import burp.api.montoya.ui.contextmenu.ContextMenuEvent;
 import burp.api.montoya.ui.contextmenu.ContextMenuItemsProvider;
 import burp.api.montoya.ui.contextmenu.MessageEditorHttpRequestResponse;
-
-import javax.swing.*;
 import java.awt.*;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
 import java.util.List;
-import org.json.JSONObject;
+import javax.swing.*;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanCheck {
     private static final String EXTENSION_NAME = "AI Auditor";
