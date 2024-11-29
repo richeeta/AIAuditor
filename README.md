@@ -1,8 +1,10 @@
 # AI Auditor: Burp Scan with GPT, Claude, Gemini (Pre-release)
-**Author**: Richard Hyunho Im (@richeeta) at Route Zero Security
+**Author**: Richard Hyunho Im ([@richeeta](https://github.com/richeeta)) at [Route Zero Security](https://routezero.security)
 
 ## Description
 Now available in pre-release, AI Auditor is the first Burp Suite extension to integrate advanced large language models from OpenAI, Google, Anthropic, and Meta to add state-of-the-art AI capabilities to Burp Suite for enhanced vulnerability scanning and analysis.
+
+![prerelease-screenshot](images/prerelease-ss.png)
 
 ## Features
 ### Core Capabilities
