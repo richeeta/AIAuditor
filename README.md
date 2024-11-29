@@ -1,4 +1,4 @@
-# AI Auditor (Pre-release)
+# AI Auditor: Burp Scan with GPT, Claude, Gemini (Pre-release)
 **Author**: Richard Hyunho Im (@richeeta) at Route Zero Security
 
 ## Description
