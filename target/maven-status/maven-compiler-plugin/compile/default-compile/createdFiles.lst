@@ -1,2 +1,9 @@
-burp\AIAuditIssue.class
 burp\AIAuditor.class
+burp\ThreadPoolManager$1.class
+burp\SafeUtils.class
+burp\ThreadPoolManager$RateLimiter.class
+burp\AIAuditIssue$Builder.class
+burp\AIAuditIssue.class
+burp\ThreadPoolManager.class
+burp\RequestChunker.class
+burp\AIAuditor$1.class
