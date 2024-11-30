@@ -81,75 +81,42 @@ mvn clean package
 The compiled JAR will be available at `target/ai-auditor-1.0-SNAPSHOT-jar-with-dependencies.jar`.
 
 ## Installation: Loading JAR in Burp Suite (Recommended)
-1. Download the JAR file from the Releases page.
-2. Open Burp Suite Professional Edition or Burp Suite Enterprise Edition.
-3. Navigate to the Extensions tab.
-4. Click Add, select Java as the extension type, and upload the JAR file.
-5. Click Next to load the extension.
+1. [Download](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre) the latest version in **[Releases](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre)**.
+2. Open **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition**.
+3. Navigate to the **Extensions** tab.
+4. Click **Add**, select **Java** as the extension type, and upload the `JAR` file.
+5. Click **Next** to load the extension.
 
 ## Usage
 ### Initial Setup
 1. Go to the AI Auditor tab in Burp Suite.
 2. Enter your API key(s) for OpenAI, Gemini, and/or Claude, then click **Validate** to confirm each key is working.
-3. Configure **Context Number** (default: `1`): This determines the number of related requests/responses analyzed together.
-4. *Optional*: Add **Custom Instructions** to refine the analysis.
-5. Save your settings.
+3. *Optional*: Add **Custom Instructions** to refine the analysis.
+4. Save your settings.
 
 ### Analyzing Requests/Responses
 #### Single Analysis
 1. Right-click a request or response in Burp Suite.
-2. Select **Extensions** > **AI Auditor** > **AI Audit/Scan**.
+2. Select **Extensions** > **AI Auditor** > **Scan Full Request/Response**.
 
-#### Batch Analysis (Not Recommended)
-**WARNING**: This feature is still under development. Currently, large request(s)/response(s) may add significant performance overhead or even crash Burp Suite, especially if multiple request(s)/response(s) are selected. Use at your own risk!
-1. In **Proxy** > **HTTP History** or in **Logger**: Select multiple requests/responses.
-2. Right-click and select **Extensions** > **AI Auditor** > **AI Audit/Scan**.
+#### Analyze Selected Portion Only
+1. In a request or a response, highlight what you want to scan.
+2. Right-click on your highlighted selection.
+3. Select **Extensions** > **AI Auditor** > **Scan Selected Portion**.
 
 ### Review Results
 Findings are displayed in Burp Scanner with detailed information.
+**NOTE**: As of November 29, 2024, only issues reported using OpenAI models (e.g., `gpt-4o-mini`, `gpt-4o`, `o1-mini`, and `o1-preview`) will be added to the Scanner. (Responses from Claude and Gemini will print to the console.)
 
 ## Usage Tips and Recommendations
 ### Avoid Scanning Large Responses
-Large HTTP responses may exceed token limits and result in not only incomplete analysis but also degraded performance. I am working to add the ability to view and edit request(s)/response(s) in the next release.
+Large HTTP responses may exceed token limits and result in not only incomplete analysis but also degraded performance.
 
-### Use Default Context Number or Set to Zero
-A context number of `1` provides balanced analysis. If you're running into performance issues, set to `0`.
 
 ### Customize Instructions Effectively
 To get the best results from the AI Auditor, provide clear and specific instructions. For example:
 * **Ineffective**: `Analyze and report all legit security issues.`
 * **Effective**: `Identify and list all API endpoints found in the JavaScript file.`
-
-## Current Limitations and Planned Updates
-### No Interactive Follow-Up with LLM
-AI Auditor doesn’t currently support interactive follow-ups with AI. Each request is treated as a standalone interaction, which means you can’t ask follow-up questions or refine the findings in real time. This is because maintaining conversational state while keeping the tool responsive is a challenging task. The lack of contextual memory compounds the issue, as the extension doesn’t correlate findings across multiple requests or responses. This makes it less effective for analyzing multi-step workflows or identifying related vulnerabilities.
-
-Planned updates include adding interactive follow-up capabilities and contextual memory. These features will let you ask for clarification, refine findings, or explore related issues without starting over. They will also enable the extension to track and link findings across requests and responses, providing a more complete view of application security.
-
-### Performance Bottlenecks
-The extension struggles with large requests or responses. If you send something big, like a huge JavaScript file or an API response, you might experience significant lag, and Burp Suite could even freeze for a few seconds. This happens because the extension processes everything sequentially, which isn’t efficient, especially when handling multiple tasks. Large responses can also cause occasional crashes, which is frustrating during critical testing.
-
-To address this, I plan to optimize memory usage and introduce multithreading and concurrency. This will allow the tool to process tasks in parallel, reducing lag and improving stability. Breaking down large requests into smaller, manageable chunks is another planned improvement to ensure smooth operation during intensive testing.
-
-### Resource Usage
-Running AI Auditor alongside other tools can be demanding on your system. The extension currently uses more CPU and memory than I’d like, which might be problematic if you’re working with limited resources. Security tools should integrate seamlessly into your workflow without causing unnecessary strain, and this is an area where improvement is needed.
-
-I am working on smarter resource management to ensure that AI Auditor runs efficiently. These updates will optimize memory allocation and reduce CPU usage, allowing the extension to coexist peacefully with other applications, regardless of your hardware.
-
-### Limited Error Feedback
-When things go wrong, the extension doesn’t always explain why. Whether it’s exceeding token limits, hitting rate caps, or encountering API formatting issues, the error messages often lack clarity. This can leave you guessing about what went wrong and how to fix it.
-
-Improved error handling is in the works. Future updates will ensure that error messages are detailed and actionable, helping you quickly identify and resolve problems. This should make troubleshooting far less frustrating.
-
-### User Interface Limitations
-The user interface is functional but basic. It lacks features like real-time feedback during scans, better organization of results, and the ability to export findings for reporting purposes. While the current design gets the job done, it leaves a lot to be desired in terms of usability.
-
-A major UI overhaul is planned. This will include real-time progress updates, sorting and filtering options for findings, and export capabilities for reports. The goal is to make the interface intuitive and efficient, even for complex testing scenarios.
-
-### Selective Input Editing
-Right now, everything in a request or response gets sent to the AI for analysis, whether it’s relevant or not. This can lead to higher costs, slower analysis, and less precise results. Irrelevant information like excessive headers or unused body content adds unnecessary noise to the findings.
-
-I plan to add a feature that lets you review and edit the data before it’s sent to the AI. This will give you control over what gets analyzed, reducing costs and improving the relevance of the findings. It’s a simple but powerful change that will make the extension far more user-friendly.
 
 ## FAQ
 **Why isn’t Burp Suite Community Edition supported?**
