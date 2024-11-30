@@ -6,6 +6,14 @@ Now available in pre-release, AI Auditor is the first Burp Suite extension to in
 
 ![prerelease-screenshot](images/prerelease-ss.png)
 
+## Changelog / Known Issues (Updated: 11/29/2024)
+* **ADDED**: ability to scan selected portion of response.
+* **FIXED (partially)**: some Scanner formatting issues.
+* **FIXED**: API key validation for Anthropic & Google have been fixed.
+* **FIXED**: `GPT-4o`, `GPT-4o-mini`, `o1-preview`, `o1-mini` should now work and add issues properly to the Scanner.
+* **FIXED (partially)**: Gemini and Anthropic models will now respond, but the responses can only be viewed in the console for now.
+* **FIXED**: Implemented concurrency and other performance optimizations: should no longer freeze.
+
 ## Features
 ### Core Capabilities
 * **Multi-Provider AI Integration**: **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o1-preview`, `o1-mini`), **Google Gemini** (`gemini-1.5-pro`, `gemini-1.5-flash`), **Anthropic Claude** (`claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest`)
