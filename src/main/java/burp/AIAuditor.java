@@ -9,54 +9,59 @@
  * results for integration into Burp Suite's Scanner and other tools.
  * 
  * Version: 1.0
- * Date: November 28, 2024
+ * CHANGELOG: December 1, 2024
+ * - FIXED: All models should correctly report issues in the Scanner now.
+ * - FIXED: All API keys should now validate correctly.
+ * 
+ * KNOWN ISSUES:
+ * - Saved API keys may not persist on restart.
  */
 
- package burp;
+package burp;
 
- import java.io.BufferedReader;
+import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
- import java.io.OutputStream;
- import java.net.HttpURLConnection;
- import java.net.URL;
- import java.nio.charset.StandardCharsets;
- import java.time.Instant;
- import java.time.Duration;
- import java.util.concurrent.*;
- import java.util.*;
- import java.util.List;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.Duration;
+import java.util.concurrent.*;
+import java.util.*;
+import java.util.List;
  
- import org.json.JSONArray;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
- import burp.api.montoya.core.Range;
- import burp.api.montoya.BurpExtension;
- import burp.api.montoya.MontoyaApi;
- import burp.api.montoya.core.Registration;
- import burp.api.montoya.core.ToolType;
- import burp.api.montoya.http.message.HttpRequestResponse;
- import burp.api.montoya.persistence.PersistedObject;
- import burp.api.montoya.scanner.AuditResult;
- import burp.api.montoya.scanner.ConsolidationAction;
- import burp.api.montoya.scanner.ScanCheck;
- import burp.api.montoya.scanner.audit.insertionpoint.AuditInsertionPoint;
- import burp.api.montoya.scanner.audit.issues.AuditIssue;
- import burp.api.montoya.scanner.audit.issues.AuditIssueConfidence;
- import burp.api.montoya.scanner.audit.issues.AuditIssueSeverity;
- import burp.api.montoya.ui.Selection;
- import burp.api.montoya.ui.contextmenu.*;
- import burp.api.montoya.ui.editor.HttpRequestEditor;
- import burp.api.montoya.ui.editor.HttpResponseEditor;
+import burp.api.montoya.core.Range;
+import burp.api.montoya.BurpExtension;
+import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.core.Registration;
+import burp.api.montoya.core.ToolType;
+import burp.api.montoya.http.message.HttpRequestResponse;
+import burp.api.montoya.persistence.PersistedObject;
+import burp.api.montoya.scanner.AuditResult;
+import burp.api.montoya.scanner.ConsolidationAction;
+import burp.api.montoya.scanner.ScanCheck;
+import burp.api.montoya.scanner.audit.insertionpoint.AuditInsertionPoint;
+import burp.api.montoya.scanner.audit.issues.AuditIssue;
+import burp.api.montoya.scanner.audit.issues.AuditIssueConfidence;
+import burp.api.montoya.scanner.audit.issues.AuditIssueSeverity;
+import burp.api.montoya.ui.Selection;
+import burp.api.montoya.ui.contextmenu.*;
+import burp.api.montoya.ui.editor.HttpRequestEditor;
+import burp.api.montoya.ui.editor.HttpResponseEditor;
  
- import javax.swing.*;
- import java.awt.*;
+import javax.swing.*;
+import java.awt.*;
  
- public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanCheck {
-     private static final String EXTENSION_NAME = "AI Auditor";
-     private static final int MAX_RETRIES = 3;
-     private static final int RETRY_DELAY_MS = 1000;
+public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanCheck {
+    private static final String EXTENSION_NAME = "AI Auditor";
+    private static final int MAX_RETRIES = 3;
+    private static final int RETRY_DELAY_MS = 1000;
      
      private MontoyaApi api;
      private PersistedObject persistedData;
@@ -82,8 +87,6 @@ import org.json.JSONObject;
         put("o1-preview", "openai");
         put("o1-mini", "openai");
         put("claude-3-opus-latest", "claude");
-        put("claude-3-sonnet-latest", "claude");
-        put("claude-3-haiku-latest", "claude");
         put("claude-3-5-sonnet-latest", "claude");
         put("claude-3-5-haiku-latest", "claude");
         put("gemini-1.5-pro", "gemini");
@@ -92,24 +95,27 @@ import org.json.JSONObject;
     
     
 
-     @Override
+    @Override
     public void initialize(MontoyaApi api) {
         this.api = api;
         this.persistedData = api.persistence().extensionData();
         this.threadPoolManager = new ThreadPoolManager(api);
-        
+    
         // Register extension capabilities
         api.extension().setName(EXTENSION_NAME);
         menuRegistration = api.userInterface().registerContextMenuItemsProvider(this);
         scanCheckRegistration = api.scanner().registerScanCheck(this);
-        
+    
         // Initialize UI
         SwingUtilities.invokeLater(this::createMainTab);
-        loadSavedSettings();
-        
+    
+        // Load saved settings after creating the UI
+        SwingUtilities.invokeLater(this::loadSavedSettings);
+    
         // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(this::cleanup));
     }
+    
 
     private void cleanup() {
         isShuttingDown = true;
@@ -145,10 +151,8 @@ import org.json.JSONObject;
         modelDropdown = new JComboBox<>(new String[]{
             "Default",
             "claude-3-opus-latest",
-            "claude-3-sonnet-latest",
-            "claude-3-haiku-latest",
-            "claude-3-5-sonnet-latest", // New
-            "claude-3-5-haiku-latest",  // New
+            "claude-3-5-sonnet-latest", 
+            "claude-3-5-haiku-latest",  
             "gemini-1.5-pro",
             "gemini-1.5-flash",
             "gpt-4o-mini",
@@ -172,21 +176,26 @@ import org.json.JSONObject;
 
         // Save Button
         saveButton = new JButton("Save Settings");
-        saveButton.addActionListener(e -> saveSettings());
+        saveButton.addActionListener(e -> {
+            persistedData.setString("openaiKey", new String(openaiKeyField.getPassword()));
+            persistedData.setString("geminiKey", new String(geminiKeyField.getPassword()));
+            persistedData.setString("claudeKey", new String(claudeKeyField.getPassword()));
+            api.logging().logToOutput("API keys have been saved successfully.");
+        });
         gbc.gridx = 1; gbc.gridy = 5;
         settingsPanel.add(saveButton, gbc);
 
-        // Status Panel
+        /* planned for future release
         JPanel statusPanel = new JPanel(new GridLayout(4, 1));
         statusPanel.setBorder(BorderFactory.createTitledBorder("Status"));
         statusPanel.add(new JLabel("Active Tasks: 0"));
         statusPanel.add(new JLabel("Queued Tasks: 0"));
         statusPanel.add(new JLabel("Completed Tasks: 0"));
-        statusPanel.add(new JLabel("Memory Usage: 0 MB"));
+        statusPanel.add(new JLabel("Memory Usage: 0 MB")); */
 
         // Add panels to main panel
-        mainPanel.add(settingsPanel, BorderLayout.NORTH);
-        mainPanel.add(statusPanel, BorderLayout.CENTER);
+        mainPanel.add(settingsPanel, BorderLayout.CENTER);
+        //mainPanel.add(statusPanel, BorderLayout.CENTER);
 
         // Register the tab
         api.userInterface().registerSuiteTab("AI Auditor", mainPanel);
@@ -204,47 +213,36 @@ import org.json.JSONObject;
         panel.add(validateButton, gbc);
     }
 
-    private void saveSettings() {
-        try {
-            persistedData.setString("openai_key", new String(openaiKeyField.getPassword()));
-            persistedData.setString("gemini_key", new String(geminiKeyField.getPassword()));
-            persistedData.setString("claude_key", new String(claudeKeyField.getPassword()));
-            persistedData.setString("selected_model", (String) modelDropdown.getSelectedItem());
-            persistedData.setString("prompt_template", promptTemplateArea.getText());
-            
-            SwingUtilities.invokeLater(() -> 
-                JOptionPane.showMessageDialog(mainPanel, "Settings saved successfully", 
-                    "Success", JOptionPane.INFORMATION_MESSAGE));
-        } catch (Exception e) {
-            api.logging().logToError("Error saving settings: " + e.getMessage());
-            showError("Error saving settings", e);
-        }
-    }
-
     private void loadSavedSettings() {
-        if (openaiKeyField != null) {
-            openaiKeyField.setText(persistedData.getString("openai_key"));
-        }
-        if (geminiKeyField != null) {
-            geminiKeyField.setText(persistedData.getString("gemini_key"));
-        }
-        if (claudeKeyField != null) {
-            claudeKeyField.setText(persistedData.getString("claude_key"));
-        }
-        if (modelDropdown != null) {
-            String model = persistedData.getString("selected_model");
-            if (model != null) {
-                modelDropdown.setSelectedItem(model);
-            }
-        }
-        if (promptTemplateArea != null) {
-            String template = persistedData.getString("prompt_template");
-            if (template != null && !template.isEmpty()) {
-                promptTemplateArea.setText(template);
-            } else {
-                promptTemplateArea.setText(getDefaultPromptTemplate());
-            }
-        }
+        String openaiKey = persistedData.getString("openaiKey");
+        if (openaiKey == null) openaiKey = "";
+    
+        String geminiKey = persistedData.getString("geminiKey");
+        if (geminiKey == null) geminiKey = "";
+    
+        String claudeKey = persistedData.getString("claudeKey");
+        if (claudeKey == null) claudeKey = "";
+    
+        // Populate the UI fields
+        openaiKeyField.setText(openaiKey);
+        geminiKeyField.setText(geminiKey);
+        claudeKeyField.setText(claudeKey);
+    
+        // Debugging: Log loaded persisted data
+    api.logging().logToOutput("Loaded persisted data: OpenAI=" + openaiKey + ", Gemini=" + geminiKey + ", Claude=" + claudeKey);
+    }
+        
+    
+    private void saveSettings() {
+        String openaiKey = new String(openaiKeyField.getPassword());
+        String geminiKey = new String(geminiKeyField.getPassword());
+        String claudeKey = new String(claudeKeyField.getPassword());
+    
+        persistedData.setString("openaiKey", openaiKey);
+        persistedData.setString("geminiKey", geminiKey);
+        persistedData.setString("claudeKey", claudeKey);
+    
+        api.logging().logToOutput("Saved API keys: OpenAI=" + openaiKey + ", Gemini=" + geminiKey + ", Claude=" + claudeKey);
     }
 
     private String getDefaultPromptTemplate() {
@@ -267,6 +265,7 @@ import org.json.JSONObject;
                "  }]\n" +
                "}";
     }
+
     private boolean validateApiKeyWithEndpoint(String apiKey, String endpoint, String jsonBody, String provider) {
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
@@ -330,7 +329,7 @@ import org.json.JSONObject;
                     endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
                     jsonBody = "{"
                              + "  \"contents\": ["
-                             + "    {\"parts\": [{\"text\": \"Say hi if you are there.\"}]}"
+                             + "    {\"parts\": [{\"text\": \"yugi vs atem who wins one word only\"}]}"
                              + "  ]"
                              + "}";
                     break;
@@ -343,7 +342,7 @@ import org.json.JSONObject;
                              + "  \"model\": \"claude-3-5-sonnet-latest\","
                              + "  \"max_tokens\": 1024,"
                              + "  \"messages\": ["
-                             + "    {\"role\": \"user\", \"content\": \"Say hi if you are there\"}"
+                             + "    {\"role\": \"user\", \"content\": \"who lives in pineapple under sea one word only\"}"
                              + "  ]"
                              + "}";
                     break;
@@ -369,11 +368,11 @@ import org.json.JSONObject;
     
     
     
-    private void showValidationError(String message) {
+private void showValidationError(String message) {
         SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(mainPanel, message, "Validation Error", JOptionPane.ERROR_MESSAGE));
     }
     
-    private boolean performValidationRequest(String testEndpoint, String jsonBody, Map<String, String> headers) throws Exception {
+    privateboolean performValidationRequest(String testEndpoint, String jsonBody, Map<String, String> headers) throws Exception {
         HttpURLConnection conn = null;
         try {
             URL url = new URL(testEndpoint);
@@ -413,7 +412,7 @@ import org.json.JSONObject;
     
 
     @Override
-public List<Component> provideMenuItems(ContextMenuEvent event) {
+    public List<Component> provideMenuItems(ContextMenuEvent event) {
     List<Component> menuItems = new ArrayList<>();
 
     // Handle Message Editor selection
@@ -454,9 +453,7 @@ public List<Component> provideMenuItems(ContextMenuEvent event) {
     return menuItems;
 }
 
-
-
-private void handleSelectedScan(MessageEditorHttpRequestResponse editor) {
+    private void handleSelectedScan(MessageEditorHttpRequestResponse editor) {
     try {
         Optional<Range> selectionRange = editor.selectionOffsets();
         if (!selectionRange.isPresent()) {
@@ -544,7 +541,7 @@ private void handleSelectedScan(MessageEditorHttpRequestResponse editor) {
                     chunks = RequestChunker.chunkContent(request + "\n\n" + response);
                 }
     
-                // Create a Set to track processed vulnerabilities
+                // Create Set to track processed vulns
                 Set<String> processedVulnerabilities = new HashSet<>();
     
                 // Submit tasks to the thread pool for analysis
@@ -554,7 +551,7 @@ private void handleSelectedScan(MessageEditorHttpRequestResponse editor) {
                         () -> sendToAI(selectedModel, apiKey, chunk)));
                 }
     
-                // Process all chunks and combine results
+                // Process all chunkie cheeses and combine results
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                     .thenAccept(v -> {
                         try {
@@ -670,7 +667,7 @@ private void handleSelectedScan(MessageEditorHttpRequestResponse editor) {
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 break;
             case "gemini":
-                // Google API key is included in the URL
+                // Google API key is included in the URL bc ofc Google
                 break;
         }
 
@@ -714,135 +711,73 @@ private void processAIFindings(JSONObject aiResponse, HttpRequestResponse reques
     try {
         api.logging().logToOutput("AI Response: " + aiResponse.toString(2));
 
-        String content = null;
-
-        // Extract response content based on the provider
-        if (aiResponse.has("content")) {
-            JSONArray contentArray = aiResponse.getJSONArray("content");
-            if (contentArray.length() > 0) {
-                content = contentArray.getJSONObject(0).getString("text");
-            }
-        } else if (aiResponse.has("choices")) {
-            content = aiResponse
-                    .getJSONArray("choices")
-                    .getJSONObject(0)
-                    .getJSONObject("message")
-                    .getString("content");
-        }
-
-        if (content == null) {
+        // Extract content based on the provider
+        String content = extractContentFromResponse(aiResponse, model);
+        if (content == null || content.isEmpty()) {
             throw new JSONException("No valid content found in AI response.");
         }
 
         // Log raw content
         api.logging().logToOutput("Raw content: " + content);
 
-        // Check if the content includes findings JSON (wrapped in ```json ... ```)
-        if (!content.startsWith("```json")) {
-            SwingUtilities.invokeLater(() -> {
-                JOptionPane.showMessageDialog(mainPanel,
-                    "Error processing AI findings: Content is not in the expected JSON format.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-            });
-            return;
+        // Unwrap ```json ... ```
+        if (content.startsWith("```json")) {
+            content = content.substring(content.indexOf("{"), content.lastIndexOf("}") + 1);
         }
 
-        // Extract JSON string between the backticks
-        String jsonContent = content.substring(content.indexOf("{"), content.lastIndexOf("}") + 1);
+        api.logging().logToOutput("Extracted JSON: " + content);
 
-        api.logging().logToOutput("Extracted JSON: " + jsonContent);
+        // Parse findings JSON
+        JSONObject findingsJson = new JSONObject(content);
 
-        // Parse the JSON string
-        JSONObject findingsJson = new JSONObject(jsonContent);
-
-        // Ensure "findings" key exists
+        // Ensure findings key exists
         if (!findingsJson.has("findings")) {
-            api.logging().logToError("Key 'findings' not found in extracted JSON: " + findingsJson.toString(2));
-            SwingUtilities.invokeLater(() -> {
-                JOptionPane.showMessageDialog(mainPanel,
-                    "Error processing AI findings: 'findings' not found in extracted JSON.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-            });
-            return;
+            throw new JSONException("Key 'findings' not found in extracted JSON.");
         }
 
-        // Parse the findings array
+        // Parse findings array
         JSONArray findings = findingsJson.getJSONArray("findings");
 
         for (int i = 0; i < findings.length(); i++) {
             JSONObject finding = findings.getJSONObject(i);
 
-            // Skip duplicate vulnerabilities
+            // Skip duplicate vulns
             String hash = generateVulnerabilityHash(finding, requestResponse);
             if (processedVulnerabilities.contains(hash)) {
                 continue;
             }
             processedVulnerabilities.add(hash);
 
-            AuditIssueSeverity severity;
-            switch (finding.getString("severity").toUpperCase()) {
-                case "HIGH":
-                    severity = AuditIssueSeverity.HIGH;
-                    break;
-                case "MEDIUM":
-                    severity = AuditIssueSeverity.MEDIUM;
-                    break;
-                case "LOW":
-                    severity = AuditIssueSeverity.LOW;
-                    break;
-                default:
-                    severity = AuditIssueSeverity.INFORMATION;
-                    break;
-            }
-
-            AuditIssueConfidence confidence;
-            switch (finding.getString("confidence").toUpperCase()) {
-                case "CERTAIN":
-                    confidence = AuditIssueConfidence.CERTAIN;
-                    break;
-                case "FIRM":
-                    confidence = AuditIssueConfidence.FIRM;
-                    break;
-                default:
-                    confidence = AuditIssueConfidence.TENTATIVE;
-                    break;
-            }
+            // Parse severity and confidence
+            AuditIssueSeverity severity = parseSeverity(finding.getString("severity"));
+            AuditIssueConfidence confidence = parseConfidence(finding.getString("confidence"));
 
             // Build issue details
             StringBuilder issueDetail = new StringBuilder();
             issueDetail.append("Issue identified by AI Auditor\n\n");
-            issueDetail.append("Location: ").append(finding.getString("location")).append("\n\n");
-            issueDetail.append("Detailed Explanation:\n").append(finding.getString("explanation")).append("\n\n");
-            issueDetail.append("Confidence Level: ").append(finding.getString("confidence")).append("\n");
-            issueDetail.append("Severity Level: ").append(finding.getString("severity"));
+            issueDetail.append("Location: ").append(finding.optString("location", "Unknown")).append("\n\n");
+            issueDetail.append("Detailed Explanation:\n").append(finding.optString("explanation", "No explanation provided")).append("\n\n");
+            issueDetail.append("Confidence Level: ").append(confidence.name()).append("\n");
+            issueDetail.append("Severity Level: ").append(severity.name());
 
-            // Build the AIAuditIssue using the builder
+            // Build AIAuditIssue
             AIAuditIssue issue = new AIAuditIssue.Builder()
-                .name("AI Audit: " + finding.getString("vulnerability"))
-                .detail(issueDetail.toString())
-                .endpoint(requestResponse.request().url()) // Correct method to set the URL
-                .severity(severity)
-                .confidence(confidence)
-                .requestResponses(Collections.singletonList(requestResponse))
-                .modelUsed(model) // Include the model used for context
-                .build();
+                    .name("AI Audit: " + finding.optString("vulnerability", "Unknown Vulnerability"))
+                    .detail(issueDetail.toString())
+                    .endpoint(requestResponse.request().url())
+                    .severity(severity)
+                    .confidence(confidence)
+                    .requestResponses(Collections.singletonList(requestResponse))
+                    .modelUsed(model)
+                    .build();
 
-            // Add issue to the Site Map
+            // Add issue to sitemap
             api.siteMap().add(issue);
         }
     } catch (Exception e) {
         api.logging().logToError("Error processing AI findings: " + e.getMessage());
-        SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(mainPanel,
-                "Error processing AI findings: " + e.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE);
-        });
     }
 }
-
 
 private String extractContentFromResponse(JSONObject response, String model) {
     try {
@@ -856,19 +791,31 @@ private String extractContentFromResponse(JSONObject response, String model) {
 
         switch (provider) {
             case "claude":
-                // Extract "completion" for Claude
-                return SafeUtils.safeGetString(response, "completion");
+                // Extract "text" for Claude
+                if (response.has("content")) {
+                    JSONArray contentArray = response.getJSONArray("content");
+                    if (contentArray.length() > 0) {
+                        return contentArray.getJSONObject(0).getString("text");
+                    }
+                }
+                break;
 
             case "gemini":
-                // Extract "content" under "candidates" for Gemini
-                JSONArray candidates = SafeUtils.safeGetArray(response, "candidates");
-                if (candidates.length() > 0) {
-                    return SafeUtils.safeGetString(candidates.getJSONObject(0), "content");
+                // Extract "text" under "candidates" > "content" > "parts" for Gemini
+                JSONArray candidates = response.optJSONArray("candidates");
+                if (candidates != null && candidates.length() > 0) {
+                    JSONObject candidate = candidates.getJSONObject(0);
+                    JSONObject content = candidate.optJSONObject("content");
+                    if (content != null) {
+                        JSONArray parts = content.optJSONArray("parts");
+                        if (parts != null && parts.length() > 0) {
+                            return parts.getJSONObject(0).getString("text");
+                        }
+                    }
                 }
                 break;
 
             case "openai":
-                // Use the original parsing logic for OpenAI
                 return response
                         .getJSONArray("choices")
                         .getJSONObject(0)
@@ -879,13 +826,10 @@ private String extractContentFromResponse(JSONObject response, String model) {
                 throw new IllegalArgumentException("Unsupported provider: " + provider);
         }
     } catch (Exception e) {
-        throw new RuntimeException("Failed to extract content from response: " + e.getMessage(), e);
+        api.logging().logToError("Error extracting content from response: " + e.getMessage());
     }
     return "";
 }
-
-
-    
 
     private String formatFindingDetails(JSONObject finding) {
         if (finding == null) return "";
@@ -1007,13 +951,13 @@ private String extractContentFromResponse(JSONObject response, String model) {
 
     @Override
     public AuditResult activeAudit(HttpRequestResponse baseRequestResponse, AuditInsertionPoint auditInsertionPoint) {
-        // This extension doesn't implement active scanning
+        // this extension doesn't implement active scanning (thank god)
         return AuditResult.auditResult(Collections.emptyList());
     }
 
     @Override
     public AuditResult passiveAudit(HttpRequestResponse baseRequestResponse) {
-        // This extension doesn't implement passive scanning
+        // this extension doesn't implement passive scanning (yet)
         return AuditResult.auditResult(Collections.emptyList());
     }
 
