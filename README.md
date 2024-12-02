@@ -2,27 +2,42 @@
 **Author**: Richard Hyunho Im ([@richeeta](https://github.com/richeeta)) at [Route Zero Security](https://routezero.security)
 
 ## Description
-Now available in pre-release, AI Auditor is the first Burp Suite extension to integrate advanced large language models from OpenAI, Google, Anthropic, and Meta to add state-of-the-art AI capabilities to Burp Suite for enhanced vulnerability scanning and analysis.
+Now available in pre-release, AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite Enterprise Edition that integrates advanced large language models from OpenAI, Google, Anthropic, and Meta to add state-of-the-art AI capabilities to Burp Suite to enhance vulnerability scanning and analysis.
 
-![prerelease-screenshot](images/prerelease-ss.png)
+### Issues Reported by AI Auditor
+![ScannerReport](images/ScannerReport.png)
+
+### Scan Selected Text
+![ScanSelection](images/ScanSelection.png)
+
+### Scan Request/Response
+![ScanRequestResponse](images/ScanRequestResponse.png)
+
+## Changelog / Known Issues (Updated: 12/1/2024)
+* **FIXED**: Gemini and Anthropic models will now add issues to the Scanner.
+* **FIXED**: Scanner formatting issues.
+* **FIXED**: API key validation for Anthropic.
+* **ADDED**: Additional error handling.
+* **KNOWN ISSUE**: Saved API keys may not persist across Burp sessions.
 
 ## Changelog / Known Issues (Updated: 11/29/2024)
-* **ADDED**: ability to scan selected portion of response.
+* **ADDED**: Ability to scan selected portion of response.
 * **FIXED (partially)**: some Scanner formatting issues.
 * **FIXED**: API key validation for Anthropic & Google have been fixed.
 * **FIXED**: `GPT-4o`, `GPT-4o-mini`, `o1-preview`, `o1-mini` should now work and add issues properly to the Scanner.
 * **FIXED (partially)**: Gemini and Anthropic models will now respond, but the responses can only be viewed in the console for now.
 * **FIXED**: Implemented concurrency and other performance optimizations: should no longer freeze.
+* **REMOVED**: Context-aware analysis (due to insane performance overhead).
 
 ## Features
 ### Core Capabilities
 * **Multi-Provider AI Integration**: **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o1-preview`, `o1-mini`), **Google Gemini** (`gemini-1.5-pro`, `gemini-1.5-flash`), **Anthropic Claude** (`claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest`)
 * **Detailed Vulnerability Reporting**: Vulnerability description, location, exploitation methods, severity levels (`HIGH`, `MEDIUM`, `LOW`, `INFORMATIVE`) and confidence levels (`CERTAIN`, `FIRM`, `TENTATIVE`).
 * **Custom Instructions**: Tailor the AI’s focus and analysis for special use cases.
-* **Context-Aware Analysis**: Configure number of requests/responses analyzed together (`0`—`5`).
+* ~~**Context-Aware Analysis**: Configure number of requests/responses analyzed together (`0`—`5`).~~
 * **API Key Verification**: Verify API keys instantly within the extension.
 * **Integration with Burp Scanner**: Findings are automatically added to Burp’s issue tracker.
-* **Persistent Settings**: API keys and custom instructions will be saved and persist across sessions.
+* ~~**Persistent Settings**: API keys and custom instructions will be saved and persist across sessions.~~
 
 ## Prerequisites
 ### For General Usage
@@ -106,12 +121,10 @@ The compiled JAR will be available at `target/ai-auditor-1.0-SNAPSHOT-jar-with-d
 
 ### Review Results
 Findings are displayed in Burp Scanner with detailed information.
-**NOTE**: As of November 29, 2024, only issues reported using OpenAI models (e.g., `gpt-4o-mini`, `gpt-4o`, `o1-mini`, and `o1-preview`) will be added to the Scanner. (Responses from Claude and Gemini will print to the console.)
 
 ## Usage Tips and Recommendations
 ### Avoid Scanning Large Responses
 Large HTTP responses may exceed token limits and result in not only incomplete analysis but also degraded performance.
-
 
 ### Customize Instructions Effectively
 To get the best results from the AI Auditor, provide clear and specific instructions. For example:
