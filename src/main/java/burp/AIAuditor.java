@@ -372,7 +372,7 @@ private void showValidationError(String message) {
         SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(mainPanel, message, "Validation Error", JOptionPane.ERROR_MESSAGE));
     }
     
-    privateboolean performValidationRequest(String testEndpoint, String jsonBody, Map<String, String> headers) throws Exception {
+    private boolean performValidationRequest(String testEndpoint, String jsonBody, Map<String, String> headers) throws Exception {
         HttpURLConnection conn = null;
         try {
             URL url = new URL(testEndpoint);
