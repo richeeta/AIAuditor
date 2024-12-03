@@ -13,27 +13,6 @@ AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite En
 ### Scan Request/Response
 ![ScanRequestResponse](images/ScanRequestResponse.png)
 
-## Changelog (Updated: 12/2/2024)
-* **CHANGED**: Default models have now been set to `gpt-4o-mini`, `claude-3-5-haiku-latest`, and `gemini-1.5-flash`.
-* **FIXED**: Non-persistence of saved API keys has been addressed by replacing `PersistedObject` with `Preferences`.
-* **IMPROVED**: Default instructions have been tweaked to exclude non-impactful issues and to ensure consistent JSON output that can be added to Scanner. 
-
-## Changelog / Known Issues (Updated: 12/1/2024)
-* **FIXED**: Gemini and Anthropic models will now add issues to the Scanner.
-* **FIXED**: Scanner formatting issues.
-* **FIXED**: API key validation for Anthropic.
-* **ADDED**: Additional error handling.
-* **KNOWN ISSUE**: Saved API keys may not persist across Burp sessions.
-
-## Changelog / Known Issues (Updated: 11/29/2024)
-* **ADDED**: Ability to scan selected portion of response.
-* **FIXED (partially)**: some Scanner formatting issues.
-* **FIXED**: API key validation for Anthropic & Google have been fixed.
-* **FIXED**: `GPT-4o`, `GPT-4o-mini`, `o1-preview`, `o1-mini` should now work and add issues properly to the Scanner.
-* **FIXED (partially)**: Gemini and Anthropic models will now respond, but the responses can only be viewed in the console for now.
-* **FIXED**: Implemented concurrency and other performance optimizations: should no longer freeze.
-* **REMOVED**: Context-aware analysis (due to insane performance overhead).
-
 ## Features
 ### Core Capabilities
 * **Multi-Provider AI Integration**: **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o1-preview`, `o1-mini`), **Google Gemini** (`gemini-1.5-pro`, `gemini-1.5-flash`), **Anthropic Claude** (`claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest`)
@@ -179,3 +158,39 @@ I am providing **AI Auditor** *as-is* ***strictly*** for educational and testing
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0.
+
+## Changelog & Known Issues
+
+**NOTE**: This section will be moved into a separate changelog file with the next major release.
+
+#### 12/2/2024: v1.0 released
+* **CHANGED**: Default models have now been set to `gpt-4o-mini`, `claude-3-5-haiku-latest`, and `gemini-1.5-flash`.
+* **FIXED**: Non-persistence of saved API keys has been addressed by replacing `PersistedObject` with `Preferences`.
+* **IMPROVED**: Default instructions have been tweaked to exclude non-impactful issues and to ensure consistent JSON output that can be added to Scanner. 
+
+#### 12/1/2024: `v1.0.1-preview` updated
+* **FIXED**: Gemini and Anthropic models will now add issues to the Scanner.
+* **FIXED**: Scanner formatting issues.
+* **FIXED**: API key validation for Anthropic.
+* **ADDED**: Additional error handling.
+* **KNOWN ISSUE**: Saved API keys may not persist across Burp sessions.
+
+#### 11/29/2024: `v1.0.1-preview` released
+* **ADDED**: Ability to scan selected portion of response.
+* **FIXED (partially)**: some Scanner formatting issues.
+* **FIXED**: API key validation for Anthropic & Google have been fixed.
+* **FIXED**: `GPT-4o`, `GPT-4o-mini`, `o1-preview`, `o1-mini` should now work and add issues properly to the Scanner.
+* **FIXED (partially)**: Gemini and Anthropic models will now respond, but the responses can only be viewed in the console for now.
+* **FIXED**: Implemented concurrency and other performance optimizations: should no longer freeze.
+* **REMOVED**: Context-aware analysis (due to insane performance overhead).
+
+#### 11/29/2024: `v1.0.0-preview` released
+* **KNOWN ISSUE**: API key validation for Google Gemini and Anthropic may not be accurate.
+* **KNOWN ISSUE**: Gemini and Claude JSON responses are not added to the Scanner.
+* **KNOWN ISSUE**: OpenAI JSON responses that are added to the Scanner do not have consistent line breaks and formatting.
+* **KNOWN ISSUE**: Burp Suite will temporarily freeze while waiting for the LLM to return a JSON response.
+* **KNOWN ISSUE**: Model responses tend to flag a large number of low-severity or otherwise non-actionable security issues.
+* **KNOWN ISSUE**: Exceeding token limits for input or output may cause Burp to crash.
+* **KNOWN ISSUE**: Context-aware analysis of more than two moderately sized highlighted requests in HTTP Proxy may cause Burp to crash.
+* **FEATURE REQUEST**: Ability to scan highlighted/selected portion of request/response only.
+* **FEATURE REQUEST**: Support for OpenAI's `o1-mini` and `o1-preview`.
