@@ -1,4 +1,4 @@
-# AI Auditor: LLM-Powered Burp Scans with OpenAI, Google Gemini, and Anthropic LLMs
+# AI Auditor: LLM-Powered Burp Scans with OpenAI, Google, and Anthropic LLMs
 **Author**: Richard Hyunho Im ([@richeeta](https://github.com/richeeta)) at [Route Zero Security](https://routezero.security)
 
 ## Description
