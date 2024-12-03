@@ -13,6 +13,10 @@ Now available in pre-release, AI Auditor is an extension for Burp Suite Professi
 ### Scan Request/Response
 ![ScanRequestResponse](images/ScanRequestResponse.png)
 
+## Changelog (Updated: 12/2/2024)
+* **FIXED**: Non-persistence of saved API keys has been addressed by replacing `PersistedObject` with `Preferences`.
+* **IMPROVED**: Default instructions have been tweaked to exclude non-impactful issues and to ensure consistent JSON output that can be added to Scanner. 
+
 ## Changelog / Known Issues (Updated: 12/1/2024)
 * **FIXED**: Gemini and Anthropic models will now add issues to the Scanner.
 * **FIXED**: Scanner formatting issues.
