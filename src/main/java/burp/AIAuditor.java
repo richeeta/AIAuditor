@@ -9,16 +9,17 @@
  * results for integration into Burp Suite's Scanner and other tools.
  * 
  * Version: 1.0
- * CHANGELOG: December 1, 2024
+ * 
+ * CHANGELOG: December 2, 2024
  * - FIXED: All models should correctly report issues in the Scanner now.
  * - FIXED: All API keys should now validate correctly.
- * 
- * KNOWN ISSUES:
- * - Saved API keys may not persist on restart.
+ * - FIXED: Saved API keys should now persist on restart.
  */
 
 package burp;
 
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -62,6 +63,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
     private static final String EXTENSION_NAME = "AI Auditor";
     private static final int MAX_RETRIES = 3;
     private static final int RETRY_DELAY_MS = 1000;
+    private static final String PREF_PREFIX = "ai_auditor.";
      
      private MontoyaApi api;
      private PersistedObject persistedData;
@@ -93,30 +95,45 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         put("gemini-1.5-flash", "gemini");
     }};
     
-    
-
     @Override
     public void initialize(MontoyaApi api) {
         this.api = api;
-        this.persistedData = api.persistence().extensionData();
-        this.threadPoolManager = new ThreadPoolManager(api);
-    
+        this.threadPoolManager = new ThreadPoolManager(api);    
+        api.logging().logToOutput("Extension initializing...");
+
+        // Test preferences
+        try {
+            String testKey = "test_" + System.currentTimeMillis();
+            api.persistence().preferences().setString(PREF_PREFIX + "test", testKey);
+            String retrieved = api.persistence().preferences().getString(PREF_PREFIX + "test");
+            api.logging().logToOutput("Preferences test: " + 
+                (testKey.equals(retrieved) ? "PASSED" : "FAILED"));
+        } catch (Exception e) {
+            api.logging().logToError("Preferences test error: " + e.getMessage());
+        }
+        
         // Register extension capabilities
         api.extension().setName(EXTENSION_NAME);
         menuRegistration = api.userInterface().registerContextMenuItemsProvider(this);
         scanCheckRegistration = api.scanner().registerScanCheck(this);
-    
-        // Initialize UI
-        SwingUtilities.invokeLater(this::createMainTab);
-    
-        // Load saved settings after creating the UI
-        SwingUtilities.invokeLater(this::loadSavedSettings);
-    
-        // Add shutdown hook
-        Runtime.getRuntime().addShutdownHook(new Thread(this::cleanup));
+        
+        // Initialize UI and load settings
+        SwingUtilities.invokeLater(() -> {
+            api.logging().logToOutput("Creating main tab...");
+            createMainTab();
+            
+            // Add a small delay before loading settings to ensure UI is ready
+            javax.swing.Timer swingTimer = new javax.swing.Timer(500, e -> {
+                api.logging().logToOutput("Loading saved settings...");
+                loadSavedSettings();
+                ((javax.swing.Timer)e.getSource()).stop();
+            });
+            swingTimer.setRepeats(false);
+            swingTimer.start();
+        });
+        
+        api.logging().logToOutput("Extension initialization complete");
     }
-    
-
     private void cleanup() {
         isShuttingDown = true;
         if (threadPoolManager != null) {
@@ -176,11 +193,11 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
 
         // Save Button
         saveButton = new JButton("Save Settings");
-        saveButton.addActionListener(e -> {
-            persistedData.setString("openaiKey", new String(openaiKeyField.getPassword()));
-            persistedData.setString("geminiKey", new String(geminiKeyField.getPassword()));
-            persistedData.setString("claudeKey", new String(claudeKeyField.getPassword()));
-            api.logging().logToOutput("API keys have been saved successfully.");
+        saveButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                saveSettings();
+            }
         });
         gbc.gridx = 1; gbc.gridy = 5;
         settingsPanel.add(saveButton, gbc);
@@ -213,59 +230,212 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         panel.add(validateButton, gbc);
     }
 
-    private void loadSavedSettings() {
-        String openaiKey = persistedData.getString("openaiKey");
-        if (openaiKey == null) openaiKey = "";
-    
-        String geminiKey = persistedData.getString("geminiKey");
-        if (geminiKey == null) geminiKey = "";
-    
-        String claudeKey = persistedData.getString("claudeKey");
-        if (claudeKey == null) claudeKey = "";
-    
-        // Populate the UI fields
-        openaiKeyField.setText(openaiKey);
-        geminiKeyField.setText(geminiKey);
-        claudeKeyField.setText(claudeKey);
-    
-        // Debugging: Log loaded persisted data
-    api.logging().logToOutput("Loaded persisted data: OpenAI=" + openaiKey + ", Gemini=" + geminiKey + ", Claude=" + claudeKey);
-    }
-        
-    
     private void saveSettings() {
-        String openaiKey = new String(openaiKeyField.getPassword());
-        String geminiKey = new String(geminiKeyField.getPassword());
-        String claudeKey = new String(claudeKeyField.getPassword());
-    
-        persistedData.setString("openaiKey", openaiKey);
-        persistedData.setString("geminiKey", geminiKey);
-        persistedData.setString("claudeKey", claudeKey);
-    
-        api.logging().logToOutput("Saved API keys: OpenAI=" + openaiKey + ", Gemini=" + geminiKey + ", Claude=" + claudeKey);
+        api.logging().logToOutput("Starting saveSettings()...");
+        
+        try {
+            // Get API keys from UI fields
+            String openaiKey = new String(openaiKeyField.getPassword()).trim();
+            String geminiKey = new String(geminiKeyField.getPassword()).trim();
+            String claudeKey = new String(claudeKeyField.getPassword()).trim();
+            
+            // Check if at least one valid key is provided
+            if (openaiKey.isEmpty() && geminiKey.isEmpty() && claudeKey.isEmpty()) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(mainPanel,
+                        "Please provide at least one API key",
+                        "Validation Error",
+                        JOptionPane.WARNING_MESSAGE);
+                });
+                return;
+            }
+            
+            // Save using Montoya preferences
+            api.persistence().preferences().setString(PREF_PREFIX + "openai_key", openaiKey);
+            api.persistence().preferences().setString(PREF_PREFIX + "gemini_key", geminiKey);
+            api.persistence().preferences().setString(PREF_PREFIX + "claude_key", claudeKey);
+            
+            // Save selected model
+            String selectedModel = (String) modelDropdown.getSelectedItem();
+            api.persistence().preferences().setString(PREF_PREFIX + "selected_model", selectedModel);
+            
+            // Save custom prompt if modified from default
+            String currentPrompt = promptTemplateArea.getText();
+            String defaultPrompt = getDefaultPromptTemplate();
+            if (!currentPrompt.equals(defaultPrompt)) {
+                api.persistence().preferences().setString(PREF_PREFIX + "custom_prompt", currentPrompt);
+            }
+            
+            // Save timestamp
+            api.persistence().preferences().setLong(PREF_PREFIX + "last_save", System.currentTimeMillis());
+            
+            // Verify saves were successful
+            boolean allValid = verifySettings(openaiKey, geminiKey, claudeKey);
+            
+            if (allValid) {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(mainPanel, 
+                        "Settings saved successfully!", 
+                        "Success", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                });
+            }
+            
+        } catch (Exception e) {
+            api.logging().logToError("Error saving settings: " + e.getMessage());
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(mainPanel,
+                    "Error saving settings: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            });
+        }
     }
-
+    
+    private boolean verifySettings(String openaiKey, String geminiKey, String claudeKey) {
+        boolean allValid = true;
+        StringBuilder errors = new StringBuilder();
+        
+        // Verify each key was saved correctly
+        String verifyOpenai = api.persistence().preferences().getString(PREF_PREFIX + "openai_key");
+        if (!openaiKey.equals(verifyOpenai)) {
+            allValid = false;
+            errors.append("OpenAI key verification failed\n");
+        }
+        
+        String verifyGemini = api.persistence().preferences().getString(PREF_PREFIX + "gemini_key"); 
+        if (!geminiKey.equals(verifyGemini)) {
+            allValid = false;
+            errors.append("Gemini key verification failed\n");
+        }
+        
+        String verifyClaude = api.persistence().preferences().getString(PREF_PREFIX + "claude_key");
+        if (!claudeKey.equals(verifyClaude)) {
+            allValid = false;
+            errors.append("Claude key verification failed\n");
+        }
+        
+        if (!allValid) {
+            api.logging().logToError("Settings verification failed:\n" + errors.toString());
+        }
+        
+        return allValid;
+    }
+    
+    private void loadSavedSettings() {
+        api.logging().logToOutput("Starting loadSavedSettings()...");
+        
+        if (openaiKeyField == null || geminiKeyField == null || claudeKeyField == null) {
+            api.logging().logToError("Cannot load settings - UI components not initialized");
+            return;
+        }
+        
+        try {
+            // Load API keys
+            String openaiKey = api.persistence().preferences().getString(PREF_PREFIX + "openai_key");
+            String geminiKey = api.persistence().preferences().getString(PREF_PREFIX + "gemini_key");
+            String claudeKey = api.persistence().preferences().getString(PREF_PREFIX + "claude_key");
+            
+            // Load selected model
+            String selectedModel = api.persistence().preferences().getString(PREF_PREFIX + "selected_model");
+            
+            // Load custom prompt if exists
+            String customPrompt = api.persistence().preferences().getString(PREF_PREFIX + "custom_prompt");
+            
+            // Log retrieval status
+            api.logging().logToOutput("Retrieved from preferences:");
+            api.logging().logToOutput("- OpenAI key: " + (openaiKey != null ? "exists" : "null"));
+            api.logging().logToOutput("- Gemini key: " + (geminiKey != null ? "exists" : "null"));
+            api.logging().logToOutput("- Claude key: " + (claudeKey != null ? "exists" : "null"));
+            api.logging().logToOutput("- Selected model: " + selectedModel);
+            
+            // Update UI components
+            SwingUtilities.invokeLater(() -> {
+                // Set API keys
+                openaiKeyField.setText(openaiKey != null ? openaiKey : "");
+                geminiKeyField.setText(geminiKey != null ? geminiKey : "");
+                claudeKeyField.setText(claudeKey != null ? claudeKey : "");
+                
+                // Set selected model
+                if (selectedModel != null && modelDropdown != null) {
+                    modelDropdown.setSelectedItem(selectedModel);
+                }
+                
+                // Set custom prompt if exists
+                if (customPrompt != null && !customPrompt.isEmpty() && promptTemplateArea != null) {
+                    promptTemplateArea.setText(customPrompt);
+                }
+                
+                api.logging().logToOutput("UI fields updated with saved values");
+            });
+            
+        } catch (Exception e) {
+            api.logging().logToError("Error loading settings: " + e.getMessage());
+        }
+    }
+    
     private String getDefaultPromptTemplate() {
-        return "You are a web application security expert conducting a thorough security assessment. " +
-               "Analyze the provided HTTP request and response for security vulnerabilities, focusing on: " +
-               "1. Authentication/Authorization issues\n" +
-               "2. Injection vulnerabilities (SQL, Command, etc.)\n" +
-               "3. Information disclosure\n" +
-               "4. Insecure configurations\n" +
-               "5. Session management issues\n" +
-               "6. Access control vulnerabilities\n\n" +
-               "Format findings as JSON with the following structure:\n" +
-               "{\n" +
-               "  \"findings\": [{\n" +
-               "    \"vulnerability\": \"Specific, concise title\",\n" +
-               "    \"location\": \"Exact location in request/response\",\n" +
-               "    \"explanation\": \"Detailed technical explanation with evidence\",\n" +
-               "    \"severity\": \"HIGH|MEDIUM|LOW|INFORMATION\",\n" +
-               "    \"confidence\": \"CERTAIN|FIRM|TENTATIVE\"\n" +
-               "  }]\n" +
-               "}";
+        return "You are an expert web application security researcher specializing in identifying high-impact vulnerabilities. " +
+        "Analyze the provided HTTP request and response like a skilled bug bounty hunter, focusing on:\n\n" +
+        "HIGH PRIORITY ISSUES:\n" +
+        "1. Remote Code Execution (RCE) opportunities\n" +
+        "2. SQL, NoSQL, command injection vectors\n" +
+        "3. Authentication/Authorization bypasses\n" +
+        "4. Insecure deserialization patterns\n" +
+        "5. IDOR vulnerabilities (analyze ID patterns and access controls)\n" +
+        "6. OAuth security issues (token exposure, implicit flow risks, state validation)\n" +
+        "7. Sensitive information disclosure (tokens, credentials, internal paths)\n" +
+        "8. XSS with demonstrable impact (focus on stored/reflected with actual risk)\n" +
+        "9. CSRF in critical functions\n" +
+        "10. Insecure cryptographic implementations\n" +
+        "11. API endpoint security issues\n" +
+        "12. Token entropy/predictability issues\n" +
+        "+ Vulnerabilities that can directly be mapped to a CVE with public PoC and high-to-critical severity OWASP Top 10 vulnerabilities. \n\n" +
+        "ANALYSIS GUIDELINES:\n" +
+        "- Prioritize issues likely to be missed by Nessus, Nuclei, and Burp Scanner\n" +
+        "- Focus on vulnerabilities requiring deep response analysis\n" +
+        "- Report API endpoints found in JS files as INFORMATION level only\n" +
+        "- Ignore low-impact findings like missing headers (CSP, cookie flags, absence of security headers)\n" +
+        "- Skip theoretical issues without clear evidence\n" +
+        "- Provide specific evidence, reproduction steps or specifically crafted proof of concept\n" +
+        "- Include detailed technical context for each finding\n\n" +
+               
+        "SEVERITY CRITERIA:\n" +
+        "HIGH: Immediate security impact (examples: RCE, auth bypass, MFA bypass, OAuth implicit flow, SSRF, critical data exposure, hardcoded secrets depending on context, command injection, insecure deserialization)\n" +
+        "MEDIUM: Significant but not critical (examples: IDOR with limited scope, stored XSS, blind SSRF, blind injection, hardcoded secrets depending on context)\n" +
+        "LOW: Valid security issue but limited impact (examples: Reflected XSS, HTML or CSS or DOM manipulation requiring user interaction)\n" +
+        "INFORMATION: Useful security insights (API endpoints, potential attack surfaces)\n\n" +
+          
+        "CONFIDENCE CRITERIA:\n" +
+        "CERTAIN: Over 95 percent confident with clear evidence and reproducible\n" +
+        "FIRM: Over 60 percent confident with very strong indicators but needing additional validation\n" +
+        "TENTATIVE: At least 50 percent confident with indicators warranting further investigation\n\n" +
+             
+        "Format findings as JSON with the following structure:\n" +
+            "{\n" +
+            "  \"findings\": [{\n" +
+            "    \"vulnerability\": \"Clear, specific, concise title of issue\",\n" +
+            "    \"location\": \"Exact location in request/response (parameter, header, or path)\",\n" +
+            "    \"explanation\": \"Detailed technical explanation with evidence from the request/response\",\n" +
+            "    \"exploitation\": \"Specific steps to reproduce/exploit\",\n" +
+            "    \"validation_steps\": \"Steps to validate the finding\",\n" +
+            "    \"severity\": \"HIGH|MEDIUM|LOW|INFORMATION\",\n" +
+            "    \"confidence\": \"CERTAIN|FIRM|TENTATIVE\"\n" +
+            "  }]\n" +
+            "}\n\n" +
+            
+            "IMPORTANT:\n" +
+            "- Only report findings with clear evidence in the request/response\n" +
+            "- Issues below 50 percent confidence should not be reported unless severity is HIGH\n" +
+            "- Include specific paths, parameters, or patterns that indicate the vulnerability\n" +
+            "- For OAuth issues, carefully analyze token handling and flows (especially implicit flow)\n" +
+            "- For IDOR, analyze ID patterns and access control mechanisms\n" +
+            "- For injection points, provide exact payload locations\n" +
+            "- Ignore hardcoded Google client ID, content security policy, strict transport security not enforced, cookie scoped to parent domain, cacheable HTTPS response, browser XSS filter disabled\n" +
+            "- For sensitive info disclosure, specify exact data exposed\n" +
+            "- Only return JSON with findings, no other content!";
     }
-
+    
     private boolean validateApiKeyWithEndpoint(String apiKey, String endpoint, String jsonBody, String provider) {
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
@@ -329,7 +499,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
                     endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
                     jsonBody = "{"
                              + "  \"contents\": ["
-                             + "    {\"parts\": [{\"text\": \"yugi vs atem who wins one word only\"}]}"
+                             + "    {\"parts\": [{\"text\": \"one plus one equals (respond with one integer only)\"}]}"
                              + "  ]"
                              + "}";
                     break;
@@ -342,7 +512,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
                              + "  \"model\": \"claude-3-5-sonnet-latest\","
                              + "  \"max_tokens\": 1024,"
                              + "  \"messages\": ["
-                             + "    {\"role\": \"user\", \"content\": \"who lives in pineapple under sea one word only\"}"
+                             + "    {\"role\": \"user\", \"content\": \"one plus one equals (respond with one integer only)\"}"
                              + "  ]"
                              + "}";
                     break;
@@ -779,6 +949,8 @@ private void processAIFindings(JSONObject aiResponse, HttpRequestResponse reques
     }
 }
 
+
+
 private String extractContentFromResponse(JSONObject response, String model) {
     try {
         String provider = MODEL_MAPPING.get(model);
@@ -831,144 +1003,143 @@ private String extractContentFromResponse(JSONObject response, String model) {
     return "";
 }
 
-    private String formatFindingDetails(JSONObject finding) {
-        if (finding == null) return "";
+private String formatFindingDetails(JSONObject finding) {
+    if (finding == null) return "";
 
-        StringBuilder details = new StringBuilder();
-        details.append("<div style='font-family: Arial, sans-serif;'>");
-        
-        String location = SafeUtils.safeGetString(finding, "location");
-        if (!location.isEmpty()) {
-            details.append("<b>Location:</b><br/>")
-                   .append(escapeHtml(location))
-                   .append("<br/><br/>");
-        }
-        
-        String explanation = SafeUtils.safeGetString(finding, "explanation");
-        if (!explanation.isEmpty()) {
-            details.append("<b>Technical Details:</b><br/>")
-                   .append(escapeHtml(explanation))
-                   .append("<br/><br/>");
-        }
-
-        String exploitation = SafeUtils.safeGetString(finding, "exploitation");
-        if (!exploitation.isEmpty()) {
-            details.append("<b>Exploitation Method:</b><br/>")
-                   .append(escapeHtml(exploitation))
-                   .append("<br/><br/>");
-        }
-
-        String validation = SafeUtils.safeGetString(finding, "validation_steps");
-        if (!validation.isEmpty()) {
-            details.append("<b>Validation Steps:</b><br/>")
-                   .append(escapeHtml(validation))
-                   .append("<br/><br/>");
-        }
-
-        details.append("<b>Confidence Level:</b> ")
-               .append(SafeUtils.safeGetString(finding, "confidence"))
-               .append("<br/>")
-               .append("<b>Severity Level:</b> ")
-               .append(SafeUtils.safeGetString(finding, "severity"));
-
-        details.append("</div>");
-        return details.toString();
-    }
-
-    private String escapeHtml(String text) {
-        if (text == null) return "";
-        return text.replace("&", "&amp;")
-                  .replace("<", "&lt;")
-                  .replace(">", "&gt;")
-                  .replace("\"", "&quot;")
-                  .replace("'", "&#39;")
-                  .replace("\n", "<br/>");
-    }
-
-    private String generateVulnerabilityHash(JSONObject finding, HttpRequestResponse reqRes) {
-        String vulnerability = SafeUtils.safeGetString(finding, "vulnerability");
-        String location = SafeUtils.safeGetString(finding, "location");
-        String url = reqRes.request().url();
-
-        return String.format("%s:%s:%s",
-            vulnerability.isEmpty() ? "unknown" : vulnerability,
-            location.isEmpty() ? "unknown" : location,
-            url == null ? "unknown" : url
-        ).hashCode() + "";
-    }
-
-    private AuditIssueSeverity parseSeverity(String severity) {
-        switch (severity.toUpperCase()) {
-            case "HIGH": return AuditIssueSeverity.HIGH;
-            case "MEDIUM": return AuditIssueSeverity.MEDIUM;
-            case "LOW": return AuditIssueSeverity.LOW;
-            default: return AuditIssueSeverity.INFORMATION;
-        }
+    StringBuilder details = new StringBuilder();
+    details.append("<div style='font-family: Arial, sans-serif;'>");
+    
+    String location = SafeUtils.safeGetString(finding, "location");
+    if (!location.isEmpty()) {
+        details.append("<b>Location:</b><br/>")
+               .append(escapeHtml(location))
+               .append("<br/><br/>");
     }
     
-    private AuditIssueConfidence parseConfidence(String confidence) {
-        switch (confidence.toUpperCase()) {
-            case "CERTAIN": return AuditIssueConfidence.CERTAIN;
-            case "FIRM": return AuditIssueConfidence.FIRM;
-            default: return AuditIssueConfidence.TENTATIVE;
-        }
-    }
-    
-    private String getSelectedModel() {
-        String model = (String) modelDropdown.getSelectedItem();
-        if ("Default".equals(model)) {
-            if (!new String(claudeKeyField.getPassword()).isEmpty()) return "claude-3-sonnet-latest";
-            if (!new String(openaiKeyField.getPassword()).isEmpty()) return "gpt-4o"; // Set `gpt-4o` as the default OpenAI model
-            if (!new String(geminiKeyField.getPassword()).isEmpty()) return "gemini-1.5-pro";
-        }
-        return model;
-    }
-    
-
-    private String getApiKeyForModel(String model) {
-        String provider = MODEL_MAPPING.get(model);
-        if (provider == null) {
-            return null;
-        }
-        switch (provider) {
-            case "openai": return new String(openaiKeyField.getPassword());
-            case "gemini": return new String(geminiKeyField.getPassword());
-            case "claude": return new String(claudeKeyField.getPassword());
-            default: return null;
-        }
-    }
-    
-    
-
-    private void showError(String message, Throwable error) {
-        api.logging().logToError(message + ": " + error.getMessage());
-        SwingUtilities.invokeLater(() -> 
-            JOptionPane.showMessageDialog(mainPanel,
-                message + "\n" + error.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE));
+    String explanation = SafeUtils.safeGetString(finding, "explanation");
+    if (!explanation.isEmpty()) {
+        details.append("<b>Technical Details:</b><br/>")
+               .append(escapeHtml(explanation))
+               .append("<br/><br/>");
     }
 
-    @Override
-    public AuditResult activeAudit(HttpRequestResponse baseRequestResponse, AuditInsertionPoint auditInsertionPoint) {
-        // this extension doesn't implement active scanning (thank god)
-        return AuditResult.auditResult(Collections.emptyList());
+    String exploitation = SafeUtils.safeGetString(finding, "exploitation");
+    if (!exploitation.isEmpty()) {
+        details.append("<b>Exploitation Method:</b><br/>")
+               .append(escapeHtml(exploitation))
+               .append("<br/><br/>");
     }
 
-    @Override
-    public AuditResult passiveAudit(HttpRequestResponse baseRequestResponse) {
-        // this extension doesn't implement passive scanning (yet)
-        return AuditResult.auditResult(Collections.emptyList());
+    String validation = SafeUtils.safeGetString(finding, "validation_steps");
+    if (!validation.isEmpty()) {
+        details.append("<b>Validation Steps:</b><br/>")
+               .append(escapeHtml(validation))
+               .append("<br/><br/>");
     }
 
-    @Override
-    public ConsolidationAction consolidateIssues(AuditIssue newIssue, AuditIssue existingIssue) {
-        if (newIssue.name().equals(existingIssue.name()) &&
-            newIssue.detail().equals(existingIssue.detail()) &&
-            newIssue.severity().equals(existingIssue.severity())) {
-            return ConsolidationAction.KEEP_EXISTING;
-        }
-        return ConsolidationAction.KEEP_BOTH;
+    details.append("<b>Confidence Level:</b> ")
+           .append(SafeUtils.safeGetString(finding, "confidence"))
+           .append("<br/>")
+           .append("<b>Severity Level:</b> ")
+           .append(SafeUtils.safeGetString(finding, "severity"));
+
+    details.append("</div>");
+    return details.toString();
+}
+
+private String escapeHtml(String text) {
+    if (text == null) return "";
+    return text.replace("&", "&amp;")
+              .replace("<", "&lt;")
+              .replace(">", "&gt;")
+              .replace("\"", "&quot;")
+              .replace("'", "&#39;")
+              .replace("\n", "<br/>");
+}
+
+private String generateVulnerabilityHash(JSONObject finding, HttpRequestResponse reqRes) {
+    String vulnerability = SafeUtils.safeGetString(finding, "vulnerability");
+    String location = SafeUtils.safeGetString(finding, "location");
+    String url = reqRes.request().url();
+
+    return String.format("%s:%s:%s",
+        vulnerability.isEmpty() ? "unknown" : vulnerability,
+        location.isEmpty() ? "unknown" : location,
+        url == null ? "unknown" : url
+    ).hashCode() + "";
+}
+
+private AuditIssueSeverity parseSeverity(String severity) {
+    switch (severity.toUpperCase()) {
+        case "HIGH": return AuditIssueSeverity.HIGH;
+        case "MEDIUM": return AuditIssueSeverity.MEDIUM;
+        case "LOW": return AuditIssueSeverity.LOW;
+        default: return AuditIssueSeverity.INFORMATION;
     }
 }
 
+private AuditIssueConfidence parseConfidence(String confidence) {
+    switch (confidence.toUpperCase()) {
+        case "CERTAIN": return AuditIssueConfidence.CERTAIN;
+        case "FIRM": return AuditIssueConfidence.FIRM;
+        default: return AuditIssueConfidence.TENTATIVE;
+    }
+}
+
+private String getSelectedModel() {
+    String model = (String) modelDropdown.getSelectedItem();
+    if ("Default".equals(model)) {
+        if (!new String(claudeKeyField.getPassword()).isEmpty()) return "claude-3-5-haiku-latest";
+        if (!new String(openaiKeyField.getPassword()).isEmpty()) return "gpt-4o-mini"; // Set gpt-4o-mini as the default OpenAI model
+        if (!new String(geminiKeyField.getPassword()).isEmpty()) return "gemini-1.5-flash";
+    }
+    return model;
+}
+
+
+private String getApiKeyForModel(String model) {
+    String provider = MODEL_MAPPING.get(model);
+    if (provider == null) {
+        return null;
+    }
+    switch (provider) {
+        case "openai": return new String(openaiKeyField.getPassword());
+        case "gemini": return new String(geminiKeyField.getPassword());
+        case "claude": return new String(claudeKeyField.getPassword());
+        default: return null;
+    }
+}
+
+
+
+private void showError(String message, Throwable error) {
+    api.logging().logToError(message + ": " + error.getMessage());
+    SwingUtilities.invokeLater(() -> 
+        JOptionPane.showMessageDialog(mainPanel,
+            message + "\n" + error.getMessage(),
+            "Error",
+            JOptionPane.ERROR_MESSAGE));
+}
+
+@Override
+public AuditResult activeAudit(HttpRequestResponse baseRequestResponse, AuditInsertionPoint auditInsertionPoint) {
+    // this extension doesn't implement active scanning (thank god)
+    return AuditResult.auditResult(Collections.emptyList());
+}
+
+@Override
+public AuditResult passiveAudit(HttpRequestResponse baseRequestResponse) {
+    // this extension doesn't implement passive scanning (yet)
+    return AuditResult.auditResult(Collections.emptyList());
+}
+
+@Override
+public ConsolidationAction consolidateIssues(AuditIssue newIssue, AuditIssue existingIssue) {
+    if (newIssue.name().equals(existingIssue.name()) &&
+        newIssue.detail().equals(existingIssue.detail()) &&
+        newIssue.severity().equals(existingIssue.severity())) {
+        return ConsolidationAction.KEEP_EXISTING;
+    }
+    return ConsolidationAction.KEEP_BOTH;
+}
+}

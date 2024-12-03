@@ -2,6 +2,7 @@ burp\AIAuditor.class
 burp\ThreadPoolManager$1.class
 burp\SafeUtils.class
 burp\ThreadPoolManager$RateLimiter.class
+burp\AIAuditor$2.class
 burp\AIAuditIssue$Builder.class
 burp\AIAuditIssue.class
 burp\ThreadPoolManager.class
