@@ -1,8 +1,8 @@
-# AI Auditor: Burp Scan with GPT, Claude, Gemini (Pre-release)
+# AI Auditor: LLM-Powered Burp Scans with OpenAI, Google Gemini, and Anthropic LLMs
 **Author**: Richard Hyunho Im ([@richeeta](https://github.com/richeeta)) at [Route Zero Security](https://routezero.security)
 
 ## Description
-Now available in pre-release, AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite Enterprise Edition that integrates advanced large language models from OpenAI, Google, Anthropic, and Meta to add state-of-the-art AI capabilities to Burp Suite to enhance vulnerability scanning and analysis.
+AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite Enterprise Edition that integrates advanced large language models from OpenAI, Google, Anthropic, and Meta to add state-of-the-art AI capabilities to Burp Suite to enhance vulnerability scanning and analysis.
 
 ### Issues Reported by AI Auditor
 ![ScannerReport](images/ScannerReport.png)
@@ -41,13 +41,14 @@ Now available in pre-release, AI Auditor is an extension for Burp Suite Professi
 * ~~**Context-Aware Analysis**: Configure number of requests/responses analyzed together (`0`—`5`).~~
 * **API Key Verification**: Verify API keys instantly within the extension.
 * **Integration with Burp Scanner**: Findings are automatically added to Burp’s issue tracker.
-* ~~**Persistent Settings**: API keys and custom instructions will be saved and persist across sessions.~~
+* **Persistent Settings**: API keys and custom instructions will be saved and persist across sessions.
 
 ## Prerequisites
 ### For General Usage
 * **Operating System**: Windows, macOS, or Linux.
 * **API Key**: At least one valid API key for OpenAI, Google Gemini, or Anthropic Claude.
-* **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition** (**NOTE**: Burp Suite Community Edition is not supported).
+* **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition** (**NOTE**: Burp Suite Community Edition is not supported.)
+
 ### Additional Requirements to Build from Source
 * **Java Development Kit (JDK) 17** or later
 * **Apache Maven**
@@ -132,35 +133,20 @@ Large HTTP responses may exceed token limits and result in not only incomplete a
 
 ### Customize Instructions Effectively
 To get the best results from the AI Auditor, provide clear and specific instructions. For example:
-* **Ineffective**: `Analyze and report all legit security issues.`
-* **Effective**: `Identify and list all API endpoints found in the JavaScript file.`
+* **Bad**: `Analyze and report everything that's bad security.`
+* **Better**: `Identify and list all API endpoints found in the JavaScript file.`
+* **Better**: `Only scan for XSS and SQLi. Do not scan for other issues.`
 
 ## FAQ
 **Why isn’t Burp Suite Community Edition supported?**
 
-The short answer: AI Auditor leans heavily on Burp Suite’s Scanner feature, and that’s a perk reserved for the Professional and Enterprise editions. Without it, the extension wouldn’t be able to tie findings neatly into Burp’s issue tracker or play nice with your existing workflows. It’s like trying to cook a gourmet meal on a campfire—it might work, but it won’t be pretty or efficient.
+AI Auditor leans heavily on Burp Suite’s Scanner feature, and that’s a perk reserved for the Professional and Enterprise editions. Without it, the extension wouldn’t be able to tie findings neatly into Burp’s issue tracker or play nice with your existing workflows. It’s like trying to cook a gourmet meal on a campfire—it might work, but it won’t be pretty or efficient.
 
-The longer answer: The Community Edition doesn’t have the Scanner, so I’d have to re-engineer the extension from scratch. We’re talking about building custom tools to display findings, track issues, and manage reports. Instead of seamlessly integrating with Burp Suite, this hypothetical version would be more like a standalone tool awkwardly bolted onto the side. It wouldn’t be the AI Auditor you know—it’d be something else entirely, with its own quirks and compromises.
-
-Could I do it? Probably. Will I? Hopefully someday, but since I'd need to build this again from scratch (and make some tough calls about what features to keep, what to ditch, and how to make it useful without the polish that comes with the Pro/Enterprise Scanner), it's not on my immediate to do list.
-
-**Will support for other models/providers be added?**
-
-Yes, I plan to integrate Mistral and Llama 2 in future updates. 
-
-**Why aren’t they included now?**
-
-The short answer: time and complexity. Each new model requires careful integration, API key validation, testing, and optimization to ensure it doesn’t break the extension or your wallet.
-
-I didn’t want to delay releasing AI Auditor while I worked on making every possible model under the sun play nice. Instead, I focused on OpenAI, Google Gemini, and Anthropic Claude because they’re well-established, high-quality, and widely used in the industry. That said, adding support for more models is a priority, and I’ll roll them out as soon as they meet the quality standards I aim for.
+However, I am brainstorming ways to add support for Burp Suite Community Edition in the next release.
 
 **Is this extension available in the BApp Store?**
 
-Not yet—but it’s on the way! If you've used it, you probably know there are some quirks and kinks I need to iron out, but once I ensure everything runs smoothly, I will submit it to PortSwigger.
-
-**Will my data remain private?**
-
-**No**, and let me be extra clear about this: When you use AI Auditor, your requests and responses are sent to third-party APIs like OpenAI, Google, or Anthropic for processing. These APIs might and probably do log and analyze your data, at least to some extent. For that reason, I **strongly recommend using this extension only in non-sensitive or test environments**.
+Not yet—but it’s on the way (hopefully)! I submitted it to PortSwigger for review on December 2, 2024.
 
 **What should I do if I encounter bugs or crashes?**
 
