@@ -101,7 +101,7 @@ mvn clean package
 The compiled JAR will be available at `target/ai-auditor-1.0-SNAPSHOT-jar-with-dependencies.jar`.
 
 ## Installation: Loading JAR in Burp Suite (Recommended)
-1. [Download](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre) the latest version in **[Releases](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre)**.
+1. [Download](https://github.com/richeeta/AIAuditor/releases/tag/v1.0) the latest version in **[Releases](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre)**.
 2. Open **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition**.
 3. Navigate to the **Extensions** tab.
 4. Click **Add**, select **Java** as the extension type, and upload the `JAR` file.
