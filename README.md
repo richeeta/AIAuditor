@@ -14,6 +14,7 @@ AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite En
 ![ScanRequestResponse](images/ScanRequestResponse.png)
 
 ## Changelog (Updated: 12/2/2024)
+* **CHANGED**: Default models have now been set to `gpt-4o-mini`, `claude-3-5-haiku-latest`, and `gemini-1.5-flash`.
 * **FIXED**: Non-persistence of saved API keys has been addressed by replacing `PersistedObject` with `Preferences`.
 * **IMPROVED**: Default instructions have been tweaked to exclude non-impactful issues and to ensure consistent JSON output that can be added to Scanner. 
 
@@ -46,8 +47,12 @@ AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite En
 ## Prerequisites
 ### For General Usage
 * **Operating System**: Windows, macOS, or Linux.
-* **API Key**: At least one valid API key for OpenAI, Google Gemini, or Anthropic Claude.
-* **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition** (**NOTE**: Burp Suite Community Edition is not supported.)
+* **API Key**: A valid API key for at least one of the following:
+  * [Anthropic](https://docs.anthropic.com/en/api/getting-started)
+  * [Google Gemini](https://ai.google.dev/gemini/get_the_api_key) — recommended for newbies since Google offers a relatively generous free tier to use its Gemini API.
+  * [OpenAI](https://platform.openai.com/docs/quickstart)
+* **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition**
+  * **NOTE**: Burp Suite Community Edition is currently not supported.
 
 ### Additional Requirements to Build from Source
 * **Java Development Kit (JDK) 17** or later
@@ -101,7 +106,7 @@ mvn clean package
 The compiled JAR will be available at `target/ai-auditor-1.0-SNAPSHOT-jar-with-dependencies.jar`.
 
 ## Installation: Loading JAR in Burp Suite (Recommended)
-1. [Download](https://github.com/richeeta/AIAuditor/releases/tag/v1.0) the latest version in **[Releases](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre)**.
+1. [Download](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre) the latest version in **[Releases](https://github.com/richeeta/AIAuditor/releases/tag/v1.0.1-pre)**.
 2. Open **Burp Suite Professional Edition** or **Burp Suite Enterprise Edition**.
 3. Navigate to the **Extensions** tab.
 4. Click **Add**, select **Java** as the extension type, and upload the `JAR` file.
@@ -143,6 +148,17 @@ To get the best results from the AI Auditor, provide clear and specific instruct
 AI Auditor leans heavily on Burp Suite’s Scanner feature, and that’s a perk reserved for the Professional and Enterprise editions. Without it, the extension wouldn’t be able to tie findings neatly into Burp’s issue tracker or play nice with your existing workflows. It’s like trying to cook a gourmet meal on a campfire—it might work, but it won’t be pretty or efficient.
 
 However, I am brainstorming ways to add support for Burp Suite Community Edition in the next release.
+
+**How do I get valid API key(s) to use AI Auditor with my desired OpenAI, Google Gemini, or Anthropic model(s)?**
+
+The steps are very easy and straightforward but a little different for each provider:
+* **OpenAI (`gpt-4o`, `gpt-4o-mini`, `o1-preview`, `o1-mini`):** Follow OpenAI's [Quickstart guide](https://platform.openai.com/docs/quickstart) to sign up and generate your API key.  
+* **Google (`gemini-1.5-pro`, `gemini-1.5-flash`):** Follow the instructions on Google's [Gemini API documentation](https://ai.google.dev/gemini/get_the_api_key) to set up access and retrieve your key.  
+* **Anthropic (`claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest`):** Visit Anthropic's [Getting Started guide](https://docs.anthropic.com/en/api/getting-started) for detailed steps to acquire an API key.
+
+**VERY IMPORTANT**: While **AI Auditor** itself is free (you're welcome!), you are ultimately responsible for any costs incurred from using the associated APIs. Each provider has its own pricing structure, which you can find in the respective documentation for each.
+
+For the budget-conscious, I'd recommend trying Gemini first, since Google surprisingly offers a generous free tier. (No I don't work for Google.)
 
 **Is this extension available in the BApp Store?**
 
