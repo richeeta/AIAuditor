@@ -141,8 +141,21 @@ For the budget-conscious, I'd recommend trying Gemini first, since Google surpri
 
 **Is this extension available in the BApp Store?**
 
-Not yet—but it’s on the way (hopefully)! I submitted it to PortSwigger for review on December 2, 2024.
+Not yet—~~but it’s on the way (hopefully)~~! I submitted it to PortSwigger for review on December 2, 2024.
 
+**UPDATE (12/17/24):** PortSwigger has sent me this response:
+
+> Hi Richard,
+> 
+> Unfortunately, we're still looking into the best way forward to integrate AI/LLM features into extensions in Burp. For now, this means that we are not able to progress your BApp Store extension submission.
+> 
+> We are investigating different ways to help extension authors integrate this functionality into their extensions safely and securely. When we have further details to share, we'll make sure you're at the top of the list to know.
+> Please let us know if you need any further assistance.
+> 
+> Cheers
+> 
+> `REDACTED FOR PRIVACY`
+> PortSwigger
 **What should I do if I encounter bugs or crashes?**
 
 Please open a new issue. Include as much detail as possible—what you were doing, what went wrong, and any error messages you saw. The more I know, the faster I can fix it. Feedback is invaluable, and I genuinely appreciate users who take the time to report problems.
@@ -162,6 +175,12 @@ This project is licensed under the GNU Affero General Public License v3.0.
 ## Changelog & Known Issues
 
 **NOTE**: This section will be moved into a separate changelog file with the next major release.
+
+#### 12/17/2024: Known Issues in v1.0
+* **KNOWN ISSUE**: AIAuditor may continue to make requests even if hitting rate limits.
+* **KNOWN ISSUE**: Identical issues reported by same model may fail to deduplicate.
+* **KNOWN ISSUE**: Excessive false positive reports from some models (e.g., `gemini-1.5-flash`).
+* **FEATURE REQUEST**: Support for locally hosted Mistral and LLaMa.
 
 #### 12/2/2024: v1.0 released
 * **CHANGED**: Default models have now been set to `gpt-4o-mini`, `claude-3-5-haiku-latest`, and `gemini-1.5-flash`.
