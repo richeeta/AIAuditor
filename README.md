@@ -155,7 +155,9 @@ Not yet—~~but it’s on the way (hopefully)~~! I submitted it to PortSwigger f
 > Cheers
 > 
 > `REDACTED FOR PRIVACY`
+>
 > PortSwigger
+
 **What should I do if I encounter bugs or crashes?**
 
 Please open a new issue. Include as much detail as possible—what you were doing, what went wrong, and any error messages you saw. The more I know, the faster I can fix it. Feedback is invaluable, and I genuinely appreciate users who take the time to report problems.
