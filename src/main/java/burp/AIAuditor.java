@@ -71,11 +71,13 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
      private volatile boolean isShuttingDown = false;
      
      // UI Components
-     private JPanel mainPanel;
-     private JPasswordField openaiKeyField;
-     private JPasswordField geminiKeyField;
-     private JPasswordField claudeKeyField;
-     private JComboBox<String> modelDropdown;
+    private JPanel mainPanel;
+    private JPasswordField openaiKeyField;
+    private JPasswordField geminiKeyField;
+    private JPasswordField claudeKeyField;
+    private JTextField localEndpointField;
+    private JPasswordField localKeyField;
+    private JComboBox<String> modelDropdown;
      private JTextArea promptTemplateArea;
      private JButton saveButton;
      private Registration menuRegistration;
@@ -93,6 +95,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         put("claude-3-5-haiku-latest", "claude");
         put("gemini-1.5-pro", "gemini");
         put("gemini-1.5-flash", "gemini");
+        put("local-llm", "local");
     }};
     
     @Override
@@ -157,32 +160,44 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 5, 5, 5);
 
-        // API Keys
-        addApiKeyField(settingsPanel, gbc, 0, "OpenAI API Key:", openaiKeyField = new JPasswordField(40), "openai");
-        addApiKeyField(settingsPanel, gbc, 1, "Google API Key:", geminiKeyField = new JPasswordField(40), "gemini");
-        addApiKeyField(settingsPanel, gbc, 2, "Anthropic API Key:", claudeKeyField = new JPasswordField(40), "claude");
+        // API Keys and Local Endpoint
+        int row = 0;
+        addApiKeyField(settingsPanel, gbc, row++, "OpenAI API Key:", openaiKeyField = new JPasswordField(40), "openai");
+        addApiKeyField(settingsPanel, gbc, row++, "Google API Key:", geminiKeyField = new JPasswordField(40), "gemini");
+        addApiKeyField(settingsPanel, gbc, row++, "Anthropic API Key:", claudeKeyField = new JPasswordField(40), "claude");
+
+        // Local model endpoint and key
+        gbc.gridx = 0; gbc.gridy = row;
+        settingsPanel.add(new JLabel("Local LLM Endpoint:"), gbc);
+        localEndpointField = new JTextField(40);
+        gbc.gridx = 1;
+        settingsPanel.add(localEndpointField, gbc);
+        row++;
+
+        addApiKeyField(settingsPanel, gbc, row++, "Local LLM API Key:", localKeyField = new JPasswordField(40), "local");
 
         // Model Selection
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0; gbc.gridy = row;
         settingsPanel.add(new JLabel("AI Model:"), gbc);
         modelDropdown = new JComboBox<>(new String[]{
             "Default",
             "claude-3-opus-latest",
-            "claude-3-5-sonnet-latest", 
-            "claude-3-5-haiku-latest",  
+            "claude-3-5-sonnet-latest",
+            "claude-3-5-haiku-latest",
             "gemini-1.5-pro",
             "gemini-1.5-flash",
+            "local-llm",
             "gpt-4o-mini",
             "gpt-4o",
             "o1-preview",
             "o1-mini",
         });
-        
+
         gbc.gridx = 1;
         settingsPanel.add(modelDropdown, gbc);
 
         // Custom Prompt Template
-        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridx = 0; gbc.gridy = ++row;
         settingsPanel.add(new JLabel("Prompt Template:"), gbc);
         promptTemplateArea = new JTextArea(5, 40);
         promptTemplateArea.setLineWrap(true);
@@ -199,7 +214,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
                 saveSettings();
             }
         });
-        gbc.gridx = 1; gbc.gridy = 5;
+        gbc.gridx = 1; gbc.gridy = ++row;
         settingsPanel.add(saveButton, gbc);
 
         /* planned for future release
@@ -238,9 +253,11 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             String openaiKey = new String(openaiKeyField.getPassword()).trim();
             String geminiKey = new String(geminiKeyField.getPassword()).trim();
             String claudeKey = new String(claudeKeyField.getPassword()).trim();
+            String localKey = new String(localKeyField.getPassword()).trim();
+            String localEndpoint = localEndpointField.getText().trim();
             
             // Check if at least one valid key is provided
-            if (openaiKey.isEmpty() && geminiKey.isEmpty() && claudeKey.isEmpty()) {
+            if (openaiKey.isEmpty() && geminiKey.isEmpty() && claudeKey.isEmpty() && localEndpoint.isEmpty()) {
                 SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(mainPanel,
                         "Please provide at least one API key",
@@ -254,6 +271,8 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             api.persistence().preferences().setString(PREF_PREFIX + "openai_key", openaiKey);
             api.persistence().preferences().setString(PREF_PREFIX + "gemini_key", geminiKey);
             api.persistence().preferences().setString(PREF_PREFIX + "claude_key", claudeKey);
+            api.persistence().preferences().setString(PREF_PREFIX + "local_key", localKey);
+            api.persistence().preferences().setString(PREF_PREFIX + "local_endpoint", localEndpoint);
             
             // Save selected model
             String selectedModel = (String) modelDropdown.getSelectedItem();
@@ -270,7 +289,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             api.persistence().preferences().setLong(PREF_PREFIX + "last_save", System.currentTimeMillis());
             
             // Verify saves were successful
-            boolean allValid = verifySettings(openaiKey, geminiKey, claudeKey);
+            boolean allValid = verifySettings(openaiKey, geminiKey, claudeKey, localKey, localEndpoint);
             
             if (allValid) {
                 SwingUtilities.invokeLater(() -> {
@@ -292,7 +311,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         }
     }
     
-    private boolean verifySettings(String openaiKey, String geminiKey, String claudeKey) {
+    private boolean verifySettings(String openaiKey, String geminiKey, String claudeKey, String localKey, String localEndpoint) {
         boolean allValid = true;
         StringBuilder errors = new StringBuilder();
         
@@ -314,6 +333,18 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             allValid = false;
             errors.append("Claude key verification failed\n");
         }
+
+        String verifyLocal = api.persistence().preferences().getString(PREF_PREFIX + "local_key");
+        if (!localKey.equals(verifyLocal)) {
+            allValid = false;
+            errors.append("Local key verification failed\n");
+        }
+
+        String verifyEndpoint = api.persistence().preferences().getString(PREF_PREFIX + "local_endpoint");
+        if (!localEndpoint.equals(verifyEndpoint)) {
+            allValid = false;
+            errors.append("Local endpoint verification failed\n");
+        }
         
         if (!allValid) {
             api.logging().logToError("Settings verification failed:\n" + errors.toString());
@@ -325,7 +356,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
     private void loadSavedSettings() {
         api.logging().logToOutput("Starting loadSavedSettings()...");
         
-        if (openaiKeyField == null || geminiKeyField == null || claudeKeyField == null) {
+        if (openaiKeyField == null || geminiKeyField == null || claudeKeyField == null || localEndpointField == null || localKeyField == null) {
             api.logging().logToError("Cannot load settings - UI components not initialized");
             return;
         }
@@ -335,6 +366,8 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             String openaiKey = api.persistence().preferences().getString(PREF_PREFIX + "openai_key");
             String geminiKey = api.persistence().preferences().getString(PREF_PREFIX + "gemini_key");
             String claudeKey = api.persistence().preferences().getString(PREF_PREFIX + "claude_key");
+            String localKey = api.persistence().preferences().getString(PREF_PREFIX + "local_key");
+            String localEndpoint = api.persistence().preferences().getString(PREF_PREFIX + "local_endpoint");
             
             // Load selected model
             String selectedModel = api.persistence().preferences().getString(PREF_PREFIX + "selected_model");
@@ -347,6 +380,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             api.logging().logToOutput("- OpenAI key: " + (openaiKey != null ? "exists" : "null"));
             api.logging().logToOutput("- Gemini key: " + (geminiKey != null ? "exists" : "null"));
             api.logging().logToOutput("- Claude key: " + (claudeKey != null ? "exists" : "null"));
+            api.logging().logToOutput("- Local endpoint: " + (localEndpoint != null ? localEndpoint : "null"));
             api.logging().logToOutput("- Selected model: " + selectedModel);
             
             // Update UI components
@@ -355,6 +389,8 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
                 openaiKeyField.setText(openaiKey != null ? openaiKey : "");
                 geminiKeyField.setText(geminiKey != null ? geminiKey : "");
                 claudeKeyField.setText(claudeKey != null ? claudeKey : "");
+                localEndpointField.setText(localEndpoint != null ? localEndpoint : "");
+                localKeyField.setText(localKey != null ? localKey : "");
                 
                 // Set selected model
                 if (selectedModel != null && modelDropdown != null) {
@@ -448,6 +484,8 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             } else if ("claude".equals(provider)) {
                 conn.setRequestProperty("x-api-key", apiKey);
                 conn.setRequestProperty("anthropic-version", "2023-06-01");
+            } else if ("local".equals(provider) && apiKey != null && !apiKey.isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
             }
     
             // Send request body if necessary
@@ -515,6 +553,12 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
                              + "    {\"role\": \"user\", \"content\": \"one plus one equals (respond with one integer only)\"}"
                              + "  ]"
                              + "}";
+                    break;
+
+                case "local":
+                    apiKey = localKeyField.getText();
+                    endpoint = localEndpointField.getText();
+                    jsonBody = "{\"prompt\": \"ping\"}";
                     break;
                 
     
@@ -693,8 +737,14 @@ private void showValidationError(String message) {
         String selectedModel = getSelectedModel();
         String provider = MODEL_MAPPING.get(selectedModel);
         String apiKey = getApiKeyForModel(selectedModel);
-    
-        if (apiKey == null || apiKey.isEmpty()) {
+
+        if ("local".equals(provider)) {
+            if (localEndpointField.getText().trim().isEmpty()) {
+                SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(mainPanel, "Local endpoint not configured"));
+                return;
+            }
+        } else if (apiKey == null || apiKey.isEmpty()) {
             SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(mainPanel, "API key not configured for " + selectedModel));
             return;
@@ -795,7 +845,12 @@ private void showValidationError(String message) {
                                 .put("role", "user")
                                 .put("content", prompt + "\n\nContent to analyze:\n" + content)));
                 break;
-    
+
+            case "local":
+                url = new URL(localEndpointField.getText());
+                jsonBody.put("prompt", prompt + "\n\nContent to analyze:\n" + content);
+                break;
+
             default:
                 throw new IllegalArgumentException("Unsupported provider: " + provider);
         }
@@ -838,6 +893,11 @@ private void showValidationError(String message) {
                 break;
             case "gemini":
                 // Google API key is included in the URL bc ofc Google
+                break;
+            case "local":
+                if (apiKey != null && !apiKey.isEmpty()) {
+                    conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+                }
                 break;
         }
 
@@ -994,6 +1054,9 @@ private String extractContentFromResponse(JSONObject response, String model) {
                         .getJSONObject("message")
                         .getString("content");
 
+            case "local":
+                return response.optString("content");
+
             default:
                 throw new IllegalArgumentException("Unsupported provider: " + provider);
         }
@@ -1106,6 +1169,7 @@ private String getApiKeyForModel(String model) {
         case "openai": return new String(openaiKeyField.getPassword());
         case "gemini": return new String(geminiKeyField.getPassword());
         case "claude": return new String(claudeKeyField.getPassword());
+        case "local": return new String(localKeyField.getPassword());
         default: return null;
     }
 }
