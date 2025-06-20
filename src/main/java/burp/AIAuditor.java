@@ -32,6 +32,9 @@ import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.*;
 import java.util.List;
+
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
  
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -82,7 +85,103 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
      private JButton saveButton;
      private Registration menuRegistration;
      private Registration scanCheckRegistration;
- 
+
+	private JPanel createTemplateButtonsPanel() {
+			JPanel templatePanel = new JPanel(new GridLayout(2, 2, 5, 5)); // 2x2 grid with 5px gaps
+			templatePanel.setBorder(BorderFactory.createTitledBorder("Prompt Templates (click to copy)"));
+
+			String[] templateNames = {"1.AI Role (Context)", "2.Guidelines", "*3.Output Format", "4.Output Limits"};
+			String[] templateContents = {
+				// Template 1: 
+				"You are an expert web application security researcher specializing in identifying high-impact vulnerabilities. " +
+				"Analyze the provided HTTP request and response like a skilled bug bounty hunter, focusing on:\n\n" +
+				"HIGH PRIORITY ISSUES:\n" +
+				"1. Remote Code Execution (RCE) opportunities\n" +
+				"2. SQL, NoSQL, command injection vectors\n" +
+				"3. Authentication/Authorization bypasses\n" +
+				"4. Insecure deserialization patterns\n" +
+				"5. IDOR vulnerabilities (analyze ID patterns and access controls)\n" +
+				"6. OAuth security issues (token exposure, implicit flow risks, state validation)\n" +
+				"7. Sensitive information disclosure (tokens, credentials, internal paths)\n" +
+				"8. XSS with demonstrable impact (focus on stored/reflected with actual risk)\n" +
+				"9. CSRF in critical functions\n" +
+				"10. Insecure cryptographic implementations\n" +
+				"11. API endpoint security issues\n" +
+				"12. Token entropy/predictability issues\n" +
+				"Vulnerabilities that can directly be mapped to a CVE with public PoC and high-to-critical severity OWASP Top 10 vulnerabilities. \n\n",
+				
+				
+				// Template 2:
+				"ANALYSIS GUIDELINES:\n" +
+				"- Prioritize issues likely to be missed by Nessus, Nuclei, and Burp Scanner\n" +
+				"- Focus on vulnerabilities requiring deep response analysis\n" +
+				"- Report API endpoints found in JS files as INFORMATION level only\n" +
+				"- Ignore low-impact findings like missing headers (CSP, cookie flags, absence of security headers)\n" +
+				"- Skip theoretical issues without clear evidence\n" +
+				"- Provide specific evidence, reproduction steps or specifically crafted proof of concept\n" +
+				"- Include detailed technical context for each finding\n\n" +
+					   
+				"SEVERITY CRITERIA:\n" +
+				"HIGH: Immediate security impact (examples: RCE, auth bypass, MFA bypass, OAuth implicit flow, SSRF, critical data exposure, hardcoded secrets depending on context, command injection, insecure deserialization)\n" +
+				"MEDIUM: Significant but not critical (examples: IDOR with limited scope, stored XSS, blind SSRF, blind injection, hardcoded secrets depending on context)\n" +
+				"LOW: Valid security issue but limited impact (examples: Reflected XSS, HTML or CSS or DOM manipulation requiring user interaction)\n" +
+				"INFORMATION: Useful security insights (API endpoints, potential attack surfaces)\n\n" +
+				  
+				"CONFIDENCE CRITERIA:\n" +
+				"CERTAIN: Over 95 percent confident with clear evidence and reproducible\n" +
+				"FIRM: Over 60 percent confident with very strong indicators but needing additional validation\n" +
+				"TENTATIVE: At least 50 percent confident with indicators warranting further investigation\n\n",
+					 
+					 
+				// Template 3
+				"Format findings as JSON with the following structure:\n" +
+					"{\n" +
+					"  \"findings\": [{\n" +
+					"    \"vulnerability\": \"Clear, specific, concise title of issue\",\n" +
+					"    \"location\": \"Exact location in request/response (parameter, header, or path)\",\n" +
+					"    \"explanation\": \"Detailed technical explanation with evidence from the request/response\",\n" +
+					"    \"exploitation\": \"Specific steps to reproduce/exploit\",\n" +
+					"    \"validation_steps\": \"Steps to validate the finding\",\n" +
+					"    \"severity\": \"HIGH|MEDIUM|LOW|INFORMATION\",\n" +
+					"    \"confidence\": \"CERTAIN|FIRM|TENTATIVE\"\n" +
+					"  }]\n" +
+					"}\n",
+					
+					
+				// Template 4
+				"IMPORTANT:\n" +
+				"- Only report findings with clear evidence in the request/response\n" +
+				"- Issues below 50 percent confidence should not be reported unless severity is HIGH\n" +
+				"- Include specific paths, parameters, or patterns that indicate the vulnerability\n" +
+				"- For OAuth issues, carefully analyze token handling and flows (especially implicit flow)\n" +
+				"- For IDOR, analyze ID patterns and access control mechanisms\n" +
+				"- For injection points, provide exact payload locations\n" +
+				"- Ignore hardcoded Google client ID, content security policy, strict transport security not enforced, cookie scoped to parent domain, cacheable HTTPS response, browser XSS filter disabled\n" +
+				"- For sensitive info disclosure, specify exact data exposed\n" +
+				"- Only return JSON with findings, no other content!"
+
+
+			};
+
+			for (int i = 0; i < templateNames.length; i++) {
+				JButton button = new JButton(templateNames[i]);
+				final String contentToCopy = templateContents[i];
+				button.addActionListener(e -> {
+					try {
+						StringSelection stringSelection = new StringSelection(contentToCopy);
+						Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+						clipboard.setContents(stringSelection, null);
+						api.logging().logToOutput("'" + ((JButton)e.getSource()).getText() + "' content copied to clipboard.");
+					} catch (Exception ex) {
+						api.logging().logToError("Could not copy template to clipboard: " + ex.getMessage());
+					}
+				});
+				templatePanel.add(button);
+			}
+
+			return templatePanel;
+		}
+		
      // Model Constants
      private static final Map<String, String> MODEL_MAPPING = new HashMap<String, String>() {{
         put("Default", "");
@@ -95,7 +194,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         put("claude-3-5-haiku-latest", "claude");
         put("gemini-1.5-pro", "gemini");
         put("gemini-1.5-flash", "gemini");
-        put("local-llm", "local");
+        put("local-llm (LM Studio)", "local");
     }};
     
     @Override
@@ -150,7 +249,7 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         }
     }
 
-    private void createMainTab() {
+private void createMainTab() {
         mainPanel = new JPanel();
         mainPanel.setLayout(new BorderLayout());
 
@@ -168,8 +267,9 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
 
         // Local model endpoint and key
         gbc.gridx = 0; gbc.gridy = row;
-        settingsPanel.add(new JLabel("Local LLM Endpoint:"), gbc);
+        settingsPanel.add(new JLabel("Local LLM Endpoint (LM Studio):"), gbc);
         localEndpointField = new JTextField(40);
+        localEndpointField.setText("http://127.0.0.1:1234/v1");
         gbc.gridx = 1;
         settingsPanel.add(localEndpointField, gbc);
         row++;
@@ -186,11 +286,11 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
             "claude-3-5-haiku-latest",
             "gemini-1.5-pro",
             "gemini-1.5-flash",
-            "local-llm",
             "gpt-4o-mini",
             "gpt-4o",
             "o1-preview",
             "o1-mini",
+            "local-llm (LM Studio)",
         });
 
         gbc.gridx = 1;
@@ -199,12 +299,14 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         // Custom Prompt Template
         gbc.gridx = 0; gbc.gridy = ++row;
         settingsPanel.add(new JLabel("Prompt Template:"), gbc);
-        promptTemplateArea = new JTextArea(5, 40);
+        promptTemplateArea = new JTextArea(10, 40); // Increased height for better visibility
         promptTemplateArea.setLineWrap(true);
         promptTemplateArea.setWrapStyleWord(true);
         JScrollPane scrollPane = new JScrollPane(promptTemplateArea);
         gbc.gridx = 1;
         settingsPanel.add(scrollPane, gbc);
+        row++;
+
 
         // Save Button
         saveButton = new JButton("Save Settings");
@@ -217,6 +319,19 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         gbc.gridx = 1; gbc.gridy = ++row;
         settingsPanel.add(saveButton, gbc);
 
+
+        // *** NEW: Add the Template Buttons Panel ***
+        gbc.gridx = 1; gbc.gridy = ++row; gbc.gridwidth = 2; // Span across 2 columns
+        //gbc.anchor = GridBagConstraints.WEST; // Align to the left
+        //gbc.fill = GridBagConstraints.NONE; // Don't stretch the button panel
+        JPanel templateButtonsPanel = createTemplateButtonsPanel();
+        settingsPanel.add(templateButtonsPanel, gbc);
+        gbc.gridwidth = 1; // reset
+        //row++;
+
+
+
+
         /* planned for future release
         JPanel statusPanel = new JPanel(new GridLayout(4, 1));
         statusPanel.setBorder(BorderFactory.createTitledBorder("Status"));
@@ -225,9 +340,9 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
         statusPanel.add(new JLabel("Completed Tasks: 0"));
         statusPanel.add(new JLabel("Memory Usage: 0 MB")); */
 
+
         // Add panels to main panel
         mainPanel.add(settingsPanel, BorderLayout.CENTER);
-        //mainPanel.add(statusPanel, BorderLayout.CENTER);
 
         // Register the tab
         api.userInterface().registerSuiteTab("AI Auditor", mainPanel);
@@ -557,8 +672,9 @@ public class AIAuditor implements BurpExtension, ContextMenuItemsProvider, ScanC
 
                 case "local":
                     apiKey = localKeyField.getText();
-                    endpoint = localEndpointField.getText();
-                    jsonBody = "{\"prompt\": \"ping\"}";
+                    endpoint = localEndpointField.getText() + "/models";
+                    //endpoint = localEndpointField.getText();
+                    //jsonBody = "{\"prompt\": \"ping\"}";
                     break;
                 
     
@@ -847,10 +963,19 @@ private void showValidationError(String message) {
                 break;
 
             case "local":
-                url = new URL(localEndpointField.getText());
-                jsonBody.put("prompt", prompt + "\n\nContent to analyze:\n" + content);
-                break;
+                //url = new URL(localEndpointField.getText());
+                url = new URL(localEndpointField.getText() + "/chat/completions");
+                // jsonBody.put("prompt", prompt + "\n\nContent to analyze:\n" + content);
+                // break;
 
+                jsonBody.put("temperature", 0.7) //.put("max_tokens", 2048)
+						.put("messages", new JSONArray()
+                            .put(new JSONObject()
+                                .put("role", "user")
+                                .put("content", prompt + "\n\nContent to analyze:\n" + content)));
+                        
+                break;
+				
             default:
                 throw new IllegalArgumentException("Unsupported provider: " + provider);
         }
@@ -879,8 +1004,8 @@ private void showValidationError(String message) {
         conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
-        conn.setConnectTimeout(30000);
-        conn.setReadTimeout(30000);
+        conn.setConnectTimeout(15000); //reduced from 30000
+        conn.setReadTimeout(360000); //incresed from 60000 for local LLM
 
         String provider = MODEL_MAPPING.get(model);
         switch (provider) {
@@ -941,7 +1066,19 @@ private void processAIFindings(JSONObject aiResponse, HttpRequestResponse reques
     try {
         api.logging().logToOutput("AI Response: " + aiResponse.toString(2));
 
-        // Extract content based on the provider
+        // *** NEW: Determine the actual model used from the response JSON ***
+		String actualModel = aiResponse.optString("model");
+		String finalModelName;
+
+		if (actualModel != null && !actualModel.isEmpty() && !actualModel.equals(model)) {
+			finalModelName = model + " (" + actualModel + ")"; // e.g., "gpt-4o (gpt-4o-2024-05-13)"
+		} else {
+			finalModelName = model;
+		}
+
+
+
+        // Extract content based on the provider (using the original requested model to know the provider)
         String content = extractContentFromResponse(aiResponse, model);
         if (content == null || content.isEmpty()) {
             throw new JSONException("No valid content found in AI response.");
@@ -998,7 +1135,7 @@ private void processAIFindings(JSONObject aiResponse, HttpRequestResponse reques
                     .severity(severity)
                     .confidence(confidence)
                     .requestResponses(Collections.singletonList(requestResponse))
-                    .modelUsed(model)
+                    .modelUsed(finalModelName)
                     .build();
 
             // Add issue to sitemap
@@ -1008,7 +1145,6 @@ private void processAIFindings(JSONObject aiResponse, HttpRequestResponse reques
         api.logging().logToError("Error processing AI findings: " + e.getMessage());
     }
 }
-
 
 
 private String extractContentFromResponse(JSONObject response, String model) {
@@ -1055,8 +1191,18 @@ private String extractContentFromResponse(JSONObject response, String model) {
                         .getString("content");
 
             case "local":
-                return response.optString("content");
-
+                // return response.optString("content");
+				// Extract "content" under "choices" > "message" for LM Studio (OpenAI format)
+				JSONArray choices = response.optJSONArray("choices");
+				if (choices != null && choices.length() > 0) {
+					JSONObject choice = choices.getJSONObject(0);
+					JSONObject message = choice.optJSONObject("message");
+					if (message != null) {
+						// return message.optString("content");
+						return cleanLLMResponse(message.optString("content"), true);
+					}
+				}
+				break;
             default:
                 throw new IllegalArgumentException("Unsupported provider: " + provider);
         }
@@ -1065,6 +1211,21 @@ private String extractContentFromResponse(JSONObject response, String model) {
     }
     return "";
 }
+
+public static String cleanLLMResponse(String rawResponse, boolean removeNewlines) {
+    if (rawResponse == null) return null;
+
+    // Remove <think>...</think> including the tags
+    String cleaned = rawResponse.replaceAll("(?is)<think>.*?</think>", "");  // (?is) = case-insensitive, dot matches newline
+
+    // Optionally remove newlines
+    if (removeNewlines) {
+        cleaned = cleaned.replaceAll("\\r?\\n", " ").trim(); // Replace \n and \r\n with space
+    }
+
+    return cleaned.trim();
+}
+
 
 private String formatFindingDetails(JSONObject finding) {
     if (finding == null) return "";
