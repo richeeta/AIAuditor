@@ -6,7 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class RequestChunker {
-    private static final int MAX_CHUNK_SIZE = 8192; // 8KB chunks
+    private static final int MAX_CHUNK_SIZE = 16384; // Increased from 8KB chunks - Feature to add input box for custom values
     private static final Pattern BOUNDARY_PATTERN = Pattern.compile(
         "(?<=\\n\\n)|(?=\\n\\n)|(?<=\\})|(?=\\{)|(?<=;)|(?<=\\n)|(?=\\n)"
     );
