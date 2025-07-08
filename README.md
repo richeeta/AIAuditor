@@ -73,8 +73,8 @@ winget install Apache.Maven
 ```
 3. Clone and Build:
 ```
-git clone https://github.com/V9Y1nf0S3C/ai-auditor.git
-cd ai-auditor
+git clone https://github.com/V9Y1nf0S3C/aiauditor.git
+cd aiauditor
 mvn clean package
 ```
 #### macOS
@@ -88,8 +88,8 @@ brew install openjdk@17 maven
 ```
 3. Clone and Build:
 ```
-git clone https://github.com/V9Y1nf0S3C/ai-auditor.git
-cd ai-auditor
+git clone https://github.com/V9Y1nf0S3C/aiauditor.git
+cd aiauditor
 mvn clean package
 ```
 #### Linux (Ubuntu/Debian)
@@ -100,8 +100,8 @@ sudo apt install openjdk-17-jdk maven
 ```
 2. Clone and Build:
 ```
-git clone https://github.com/V9Y1nf0S3C/ai-auditor.git
-cd ai-auditor
+git clone https://github.com/V9Y1nf0S3C/aiauditor.git
+cd aiauditor
 mvn clean package
 ```
 
