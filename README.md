@@ -3,6 +3,8 @@
 
 **Contributor**: Vinaya Kumar ([@V9Y1nf0S3C](https://github.com/V9Y1nf0S3C))
 
+
+
 ## Description
 AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite Enterprise Edition that integrates advanced large language models from OpenAI, Google, Anthropic, and Meta to add state-of-the-art AI capabilities to Burp Suite to enhance vulnerability scanning and analysis.
 
@@ -14,6 +16,120 @@ AI Auditor is an extension for Burp Suite Professional Edition and Burp Suite En
 
 ### Scan Request/Response
 ![ScanRequestResponse](images/ScanRequestResponse.png)
+
+
+### Updates in AI Auditor v1.1 with screenshots
+
+<details>
+<summary><strong>Local LLM (LM Studio)</strong></summary>
+
+1. Run LM Studio and ensure its IP + port are reachable from Burp Suite.  
+2. Load a model in LM Studio for request/response analysis.  
+3. Enter the LM Studio URL in **Burp Suite → AI Auditor → AI Configuration**.  
+4. Click **Validate**—results appear in **Event Log** (lower-left).  
+5. Choose **AI Model → local/local-llm (LM Studio)**.  
+6. (Optional) Set the proxy to `127.0.0.1:8080` to inspect traffic.  
+7. Highlight a request or text → **Right-click → Extensions → AI Auditor**.  
+8. View findings in **Target → Issues** or the **Event Log**.
+
+<kbd>![Selecting LM Studio model in AI Auditor](images/v1.1/LMstudio-in-action-1.png)</kbd>  
+
+<kbd>![AI Auditor finding added via LM Studio](images/v1.1/LMstudio-in-action-2.png)</kbd>  
+
+<kbd>![Event Log showing LM Studio analysis](images/v1.1/LMstudio-in-action-3.png)</kbd>
+
+</details>
+
+
+
+
+<details>
+<summary><strong>Proxying AI Auditor Traffic through Burp</strong></summary>
+
+Configure **Proxy (IP:Port)**—e.g., `127.0.0.1:8080`—to route AI Auditor requests through Burp or another interception tool.
+
+> *Note:* Traffic from the **Validate** button is not proxied yet.
+
+<kbd>![Proxy configuration in AI Auditor](images/v1.1/Proxy-in-action-1.png)</kbd>  
+
+<kbd>![Proxied request captured in Burp](images/v1.1/Proxy-in-action-2.png)</kbd>
+
+</details>
+
+
+
+
+<details>
+<summary><strong>Gemini API Key Rotation</strong></summary>
+
+1. Enter multiple Google API keys (one per line) and click **Validate**.  
+2. (Optional) Click **Test Gemini Key Cycling** to simulate rotation.  
+3. (Optional) Check output under **Extension** logs.  
+4. During scans, keys rotate automatically on quota hits—verify in logs or proxy.
+
+<kbd>![Multiple Gemini keys configured](images/v1.1/key-rotation-1.png)</kbd>  
+
+<kbd>![Key-rotation test initiated](images/v1.1/key-rotation-2.png)</kbd>  
+
+<kbd>![Key-rotation output log](images/v1.1/key-rotation-3.png)</kbd>  
+
+<kbd>![Key rotated during scan (log)](images/v1.1/key-rotation-4.png)</kbd>  
+
+<kbd>![Proxied rotated-key request](images/v1.1/key-rotation-5.png)</kbd>
+
+</details>
+
+
+<details>
+<summary><strong>Event Log Migration</strong></summary>
+
+Validate-operation results and many debug messages are now sent to the **Event Log** instead of pop-ups; critical errors also surface in **Extension Error Output**.
+
+<kbd>![Validate output in Event Log](images/v1.1/event-log-1.png)</kbd>  
+
+<kbd>![Debug logs in Event Log](images/v1.1/event-log-2.png)</kbd>  
+
+<kbd>![Extension error output](images/v1.1/event-log-3.png)</kbd>
+
+</details>
+
+
+<details>
+<summary><strong>Dynamic Model Loading & Filters</strong></summary>
+
+- Default models appear on start-up.  
+- Click **Get Latest Models** to fetch new ones when APIs are set.  
+- Add model names to **Hide these Models** to exclude them.
+
+<kbd>![Default model list](images/v1.1/models-1.png)</kbd>  
+
+<kbd>![Latest models loaded](images/v1.1/models-2.png)</kbd>  
+
+<kbd>![Models list with filter applied](images/v1.1/models-3.png)</kbd>  
+
+<kbd>![Models list without filter](images/v1.1/models-4.png)</kbd>
+
+</details>
+
+
+<details>
+<summary><strong>Dedicated Prompts for Analysis & “Explain Me This”</strong></summary>
+
+Separate text boxes fir differnt prompts are are available for scanning and for the **Explain Me This** context menu; explanatory output is logged as an informational issue.
+
+<kbd>![AI Auditor UI with prompts](images/v1.1/AI-Auditor-1.png)</kbd>  
+
+<kbd>![Prompt template input](images/v1.1/prompt-input-1.png)</kbd>
+
+</details>
+
+> **Note:** A step-by-step walkthrough will be published soon on my external channels. Follow along here to get notified:
+>
+> * Medium: <https://vinay-infosec.medium.com/>
+> * LinkedIn: <https://www.linkedin.com/in/vinay-vapt/>
+>
+> I’ll update this section with direct links once the articles go live.
+
 
 ## Features
 ### Core Capabilities
