@@ -16,7 +16,9 @@
 
  import java.util.Collections;
  import java.util.List;
-
+ import java.util.regex.Pattern;
+ import java.util.regex.Matcher;
+	
  import burp.api.montoya.collaborator.Interaction;
  import burp.api.montoya.http.HttpService;
  import burp.api.montoya.http.message.HttpRequestResponse;
@@ -35,42 +37,78 @@
      private final HttpService httpService;
      private final String modelUsed;
  
+
+
+	private static final Pattern MD_BOLD   =
+			Pattern.compile("(?:\\*\\*|__)(.+?)(?:\\*\\*|__)");
+	private static final Pattern MD_ITALIC =
+			Pattern.compile("(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)"  // *italic*
+						  + "|_(.+?)_");                                 // _italic_
+	private static final Pattern PARA      = Pattern.compile("\\n{2,}"); // blank line
+	private static final Pattern BR        = Pattern.compile("\\n");     // single \n
+	private static final Pattern AMP_LT    = Pattern.compile("&|<");     // escape &, <
+
+
      private AIAuditIssue(Builder builder) {
-         this.name = builder.name;
-         this.detail = formatDetail(builder.detail, builder.modelUsed);
-         this.endpoint = builder.endpoint;
-         this.severity = builder.severity;
-         this.confidence = builder.confidence;
-         this.requestResponses = builder.requestResponses;
-         this.httpService = builder.requestResponses.get(0).httpService();
-         this.modelUsed = builder.modelUsed;
+        this.name = builder.name;
+		this.detail = formatDetail(builder.detail, builder.modelUsed);
+		this.endpoint = builder.endpoint;
+		this.severity = builder.severity;
+		this.confidence = builder.confidence;
+
+		if (builder.requestResponses == null || builder.requestResponses.isEmpty()) {
+			// Fallback: keep Burp alive but the issue will not show a request tab
+			this.requestResponses = Collections.emptyList();
+			this.httpService      = null;
+		} else {
+			this.requestResponses = builder.requestResponses;
+			this.httpService      = builder.requestResponses.get(0).httpService();
+		}
+
+		this.modelUsed = builder.modelUsed;
      }
  
-     private String formatDetail(String detail, String modelUsed) {
-         StringBuilder formattedDetail = new StringBuilder();
-         formattedDetail.append("<div style='font-family: Arial, sans-serif;'>");
-         formattedDetail.append("<p><b>Scanned with:</b> ").append(modelUsed).append("</p>");
-         formattedDetail.append("<hr/>");
-         
-         // Replace common markdown-style formatting with HTML
-         String htmlDetail = detail
-             .replace("**", "<b>")
-             .replace("__", "<b>")
-             .replace("*", "<i>")
-             .replace("_", "<i>")
-             .replace("\n\n", "</p><p>")
-             .replace("\n", "<br/>");
-         
-         // Ensure all paragraphs are properly closed
-         if (!htmlDetail.endsWith("</p>")) {
-             htmlDetail += "</p>";
-         }
-         
-         formattedDetail.append(htmlDetail);
-         formattedDetail.append("</div>");
-         
-         return formattedDetail.toString();
-     }
+ 
+	/** Converts a limited Markdown subset (bold, italic, newlines) to HTML. */
+	private static String mdToHtmlLite(String md) {
+		// 0️⃣ Escape raw & and < so user text can’t break our tags
+		String html = AMP_LT.matcher(md)
+							.replaceAll(m -> m.group().equals("&") ? "&amp;" : "&lt;");
+
+		// 1️⃣ Bold: **text** or __text__
+		html = MD_BOLD.matcher(html).replaceAll("<b>$1</b>");
+
+		// 2️⃣ Italic: *text* or _text_
+		html = MD_ITALIC.matcher(html).replaceAll("<i>$1$2</i>");
+
+		// 3️⃣ Paragraphs and line breaks
+		html = PARA.matcher(html).replaceAll("</p><p>");
+		html = BR.matcher(html).replaceAll("<br/>");
+
+		return html;
+	}
+
+	private String formatDetail(String markdownDetail, String modelUsed) {
+		StringBuilder out = new StringBuilder(markdownDetail.length() + 256);
+
+		out.append("<div style='font-family: Arial, sans-serif;'>")
+		   .append("<p><b>Scanned with:</b> ")
+		   .append(modelUsed)
+		   .append("</p>");
+
+		// Convert limited Markdown to HTML
+		out.append("<p>")
+		   .append(mdToHtmlLite(markdownDetail).trim());
+
+		// Ensure closing tags
+		if (!markdownDetail.endsWith("\n\n")) {
+			out.append("</p>");
+		}
+		out.append("</div>");
+
+		return out.toString();
+	}
+
  
      @Override
      public AuditIssueDefinition definition() {
